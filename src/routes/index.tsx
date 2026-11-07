@@ -1,23 +1,66 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { deleteStory, loadStories, type Story } from "@/lib/rp";
 
-// The home route ships no og:image, so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Absolute RP — Your stories" },
+      { name: "description", content: "Canon-accurate AI roleplay with a Game Master that never forgets." },
+      { property: "og:title", content: "Absolute RP — Your stories" },
+      { property: "og:description", content: "Canon-accurate AI roleplay with a Game Master that never forgets." },
+    ],
+  }),
+  component: Home,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function Home() {
+  const [stories, setStories] = useState<Story[] | null>(null);
+  useEffect(() => setStories(loadStories()), []);
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <main className="bg-hero min-h-screen px-4 pb-24 pt-10">
+      <div className="mx-auto max-w-2xl">
+        <h1 className="font-display text-5xl font-bold text-primary">Absolute RP</h1>
+        <p className="mt-2 text-muted-foreground">You control your character. The world remembers everything.</p>
+
+        <Link
+          to="/new"
+          className="mt-8 flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 text-lg font-semibold text-primary-foreground shadow-lg transition-transform active:scale-95"
+        >
+          <Plus className="h-5 w-5" /> New story
+        </Link>
+
+        <div className="mt-8 space-y-3">
+          {stories?.length === 0 && (
+            <p className="text-center text-muted-foreground">No stories yet. Start your first one!</p>
+          )}
+          {stories?.map((s) => {
+            const last = s.messages[s.messages.length - 1];
+            return (
+              <div key={s.id} className="flex items-stretch gap-2 rounded-2xl border border-border bg-card">
+                <Link to="/story/$storyId" params={{ storyId: s.id }} className="min-w-0 flex-1 p-4">
+                  <div className="text-xs uppercase tracking-widest text-accent">{s.fandom}</div>
+                  <div className="font-display text-2xl font-bold">{s.title}</div>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{last?.text ?? "…"}</p>
+                </Link>
+                <button
+                  aria-label="Delete story"
+                  className="px-4 text-muted-foreground hover:text-destructive"
+                  onClick={() => {
+                    if (!confirm(`Delete "${s.title}"?`)) return;
+                    deleteStory(s.id);
+                    setStories(loadStories());
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </main>
   );
 }
