@@ -64,7 +64,7 @@ function StoryPage() {
       const res = await ledgerFn({
         data: { context: buildContext(s), transcript: recent, facts: s.facts.map((f) => f.text) },
       }).catch(() => null);
-      const r = res?.result as LedgerResult | null | undefined;
+      const r = (res?.result ? JSON.parse(res.result) : null) as LedgerResult | null;
       const cur = ref.current;
       if (!r || !cur || cur.id !== s.id) return;
       const remove = new Set(r.removeFacts ?? []);

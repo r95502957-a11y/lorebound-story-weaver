@@ -76,7 +76,7 @@ Update continuity. Return JSON:
  "chapterSummary": ""  // if complete: events, character development, NPCs, relationships, discoveries, consequences, world state, unresolved threads, next starting point
 }`,
       );
-      return { result: parseJson(text), error: null };
+      return { result: JSON.stringify(parseJson(text)), error: null };
     } catch (e) {
       console.error(e);
       return { result: null, error: "update failed" };
