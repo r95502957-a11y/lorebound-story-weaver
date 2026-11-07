@@ -28,3 +28,5 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- Stories persist in browser localStorage (src/lib/rp.ts); GM replies stream via /api/gm and a separate continuity pass (src/lib/rp.functions.ts) updates facts/HUD/chapters — keeps narration fast while memory stays structured.
