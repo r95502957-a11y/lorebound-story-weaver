@@ -14,7 +14,7 @@ import {
   seedFrom,
   speakersIn,
 } from "@/lib/visuals";
-import { Avatar, Pic, PictureControls, useTypewriter } from "@/components/visuals";
+import { Avatar, Pic, PictureControls, usePictureUrl, useTypewriter } from "@/components/visuals";
 
 export const Route = createFileRoute("/story/$storyId")({
   head: () => ({
@@ -362,11 +362,17 @@ function StoryPage() {
       {panel && <StoryPanel story={story} onClose={() => setPanel(false)} onChange={commit} onZoom={setZoom} />}
       {zoom && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/90 p-4" onClick={() => setZoom(null)}>
-          <img src={zoom} alt="" className="max-h-full max-w-full rounded-2xl" />
+          <ZoomImg src={zoom} />
         </div>
       )}
     </div>
   );
+}
+
+function ZoomImg({ src }: { src: string }) {
+  const url = usePictureUrl(src);
+  if (!url) return <p className="text-muted-foreground">This picture is still being painted…</p>;
+  return <img src={url} alt="" className="max-h-full max-w-full rounded-2xl" />;
 }
 
 function GmText({ msg, story, typing, onZoom }: { msg: Msg; story: Story; typing: boolean; onZoom: (u: string) => void }) {

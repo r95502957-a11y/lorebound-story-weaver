@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { deleteStory, loadStories, type Story } from "@/lib/rp";
 import { sceneUrl } from "@/lib/visuals";
+import { Pic } from "@/components/visuals";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,11 +43,10 @@ function Home() {
             return (
               <div key={s.id} className="flex items-stretch gap-2 overflow-hidden rounded-2xl border border-border bg-card">
                 <Link to="/story/$storyId" params={{ storyId: s.id }} className="flex min-w-0 flex-1 items-center gap-3 p-3">
-                  <img
+                  <Pic
                     src={s.cover || sceneUrl(s, `${s.title}, ${s.fandom}`)}
                     alt=""
-                    loading="lazy"
-                    className="h-20 w-20 shrink-0 rounded-xl bg-secondary object-cover"
+                    className="h-20 w-20 shrink-0 rounded-xl"
                   />
                   <div className="min-w-0 flex-1">
                   <div className="text-xs uppercase tracking-widest text-accent">{s.fandom}</div>
