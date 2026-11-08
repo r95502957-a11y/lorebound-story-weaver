@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Link2, RefreshCw } from "lucide-react";
 import { shrinkImage } from "@/lib/visuals";
+import { pictureState, watchPicture, type PicState } from "@/lib/picture-cache";
 
 /** Picture that retries a couple of times (the free picture service can be slow), then shows a fallback. */
 export function Pic({
@@ -14,29 +15,43 @@ export function Pic({
   className?: string;
   fallback?: React.ReactNode;
 }) {
-  const [attempt, setAttempt] = useState(0);
-  const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [state, setState] = useState<PicState>({ status: "waiting", ahead: 0 });
+  const [broken, setBroken] = useState(false);
   useEffect(() => {
-    setAttempt(0);
-    setFailed(false);
-    setLoaded(false);
+    setBroken(false);
+    if (!src) return;
+    const update = () => setState(pictureState(src));
+    update();
+    return watchPicture(src, update);
   }, [src]);
-  if (!src || failed) return <>{fallback ?? <div className={`${className} bg-secondary`} />}</>;
-  const url = attempt && !src.startsWith("data:") ? `${src}${src.includes("?") ? "&" : "?"}r=${attempt}` : src;
+  if (!src || broken || state.status === "failed") return <>{fallback ?? <div className={`${className} bg-secondary`} />}</>;
+  if (state.status === "waiting")
+    return (
+      <>
+        {fallback ?? (
+          <div className={`${className} flex animate-pulse items-center justify-center bg-secondary text-xs text-muted-foreground`}>
+            {state.ahead ? `Painting soon · ${state.ahead} ahead` : "Painting…"}
+          </div>
+        )}
+      </>
+    );
   return (
     <img
-      src={url}
+      src={state.url}
       alt={alt}
-      loading="lazy"
-      onLoad={() => setLoaded(true)}
-      onError={() => {
-        if (attempt < 2) setTimeout(() => setAttempt((a) => a + 1), 2500 * (attempt + 1));
-        else setFailed(true);
-      }}
-      className={`${className} bg-secondary object-cover ${loaded ? "" : "animate-pulse"}`}
+      onError={() => setBroken(true)}
+      className={`${className} bg-secondary object-cover`}
     />
   );
+}
+
+/** Same as Pic but resolves to the saved picture so zoom shows it too. */
+export function usePictureUrl(src: string | null) {
+  const [, force] = useState(0);
+  useEffect(() => (src ? watchPicture(src, () => force((n) => n + 1)) : undefined), [src]);
+  if (!src) return null;
+  const s = pictureState(src);
+  return s.status === "ready" ? s.url : null;
 }
 
 export function Avatar({ src, name, size = "md" }: { src?: string | undefined; name: string; size?: "sm" | "md" | "lg" }) {
