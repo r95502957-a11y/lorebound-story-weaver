@@ -13,8 +13,8 @@ export class GeminiError extends Error {
 }
 
 function headers() {
-  const lovable = process.env.LOVABLE_API_KEY;
-  const conn = process.env.UDC_GOOGLE_GEMINI_API_KEY;
+  const lovable = process.env["LOVABLE_API_KEY"];
+  const conn = process.env["UDC_GOOGLE_GEMINI_API_KEY"];
   if (!lovable || !conn) throw new GeminiError(500, "Gemini is not connected.");
   return {
     "content-type": "application/json",
