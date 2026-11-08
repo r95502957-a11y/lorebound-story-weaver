@@ -1,19 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-async function runText(instructions: string, input: string) {
-  const { streamResponse } = await import("@lovable.dev/ai-gateway");
-  const stream = await streamResponse({
-    model: "openai/gpt-6-astra",
-    instructions,
-    input,
-  });
-  let text = "";
-  for await (const ev of stream) {
-    const e = ev as { type?: string; delta?: unknown };
-    if (e.type === "response.output_text.delta" && typeof e.delta === "string") text += e.delta;
-  }
-  return text;
+async function runText(instructions: string, input: string, json = false) {
+  const { geminiText } = await import("./gemini.server");
+  return geminiText(instructions, input, json);
 }
 
 function parseJson(text: string): unknown {
@@ -73,8 +63,9 @@ Update continuity. Return JSON:
  "checkpoint": "2-4 sentences: where the story stands right now, pending actions, active conflict",
  "chapterComplete": false,  // true ONLY if a meaningful narrative stopping point was just reached
  "chapterTitle": "",
- "chapterSummary": ""  // if complete: events, character development, NPCs, relationships, discoveries, consequences, world state, unresolved threads, next starting point
+  "chapterSummary": ""  // if complete: events, character development, NPCs, relationships, discoveries, consequences, world state, unresolved threads, next starting point
 }`,
+        true,
       );
       return { result: JSON.stringify(parseJson(text)), error: null };
     } catch (e) {
