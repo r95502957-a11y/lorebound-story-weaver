@@ -42,7 +42,9 @@ export const Route = createFileRoute("/api/gm")({
           return new Response(
             status === 429
               ? "Gemini's free limit is reached for now. Wait a minute and retry."
-              : "The Game Master couldn't respond.",
+              : status >= 500
+                ? "Gemini is busy right now. Wait a moment and retry."
+                : "The Game Master couldn't respond.",
             { status },
           );
         }
