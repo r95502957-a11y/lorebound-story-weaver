@@ -26,7 +26,7 @@ export type Hud = {
 };
 
 export type Fact = { id: string; text: string; level: "confirmed" | "inferred" };
-export type Chapter = { title: string; summary: string; image?: string };
+export type Chapter = { title: string; summary: string; image?: string; endsAt?: number }; // endsAt = message count when it closed
 
 export type Story = {
   id: string;
@@ -63,7 +63,13 @@ export function loadStories(): Story[] {
 }
 
 export function saveStories(s: Story[]) {
-  localStorage.setItem(KEY, JSON.stringify(s));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(s));
+  } catch (e) {
+    console.error("Couldn't save stories (device storage full?)", e);
+    if (typeof window !== "undefined")
+      alert("Your device storage for this app is full. Remove a few uploaded pictures or old stories.");
+  }
 }
 
 export function getStory(id: string) {
