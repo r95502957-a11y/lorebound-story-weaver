@@ -28,13 +28,26 @@ export const buildCanonSheet = createServerFn({ method: "POST" })
 Fandom/world: ${data.fandom}
 Player character: ${data.character}
 Starting point: ${data.start || "a canon-appropriate opening"}
-Include: exact timeline position, key characters likely present (personality, speech style, abilities and limits, what they know at this point), relevant world rules/power systems, locations, factions, and things that have NOT happened yet at this point. Also the first line must be a short story title like "TITLE: ...".`,
+Include: exact timeline position, key characters likely present (personality, speech style, abilities and limits, what they know at this point), relevant world rules/power systems, locations, factions, and things that have NOT happened yet at this point.
+Start your answer with these 4 lines exactly, then the sheet:
+TITLE: a short story title
+STYLE: the art style of the source for illustrations (e.g. "Naruto anime style, cel shaded" or "dark realistic medieval fantasy painting")
+COVER: one sentence describing a cover illustration showing the world, setting, atmosphere and the player character (no text in image)
+PLAYER_LOOK: one sentence of the player character's appearance (face, hair, eyes, age, build, outfit, distinguishing marks); canon-accurate if a canon character`,
       );
-      const titleMatch = text.match(/TITLE:\s*(.+)/);
-      return { canon: text.replace(/TITLE:.*\n?/, "").trim(), title: titleMatch?.[1]?.trim() ?? data.fandom, error: null };
+      const line = (k: string) => text.match(new RegExp(`^\\s*\\**${k}:?\\**:?\\s*(.+)$`, "m"))?.[1]?.trim() ?? "";
+      const canon = text.replace(/^\s*\**(TITLE|STYLE|COVER|PLAYER_LOOK):.*\n?/gm, "").trim();
+      return {
+        canon,
+        title: line("TITLE") || data.fandom,
+        style: line("STYLE"),
+        cover: line("COVER"),
+        playerLook: line("PLAYER_LOOK"),
+        error: null,
+      };
     } catch (e) {
       console.error(e);
-      return { canon: "", title: data.fandom, error: "Couldn't prepare canon notes." };
+      return { canon: "", title: data.fandom, style: "", cover: "", playerLook: "", error: "Couldn't prepare canon notes." };
     }
   });
 
@@ -42,6 +55,9 @@ const UpdateIn = z.object({
   context: z.string().max(60000),
   transcript: z.string().max(60000),
   facts: z.array(z.string()).max(400),
+  cast: z.array(z.string().max(400)).max(200).default([]),
+  needLooks: z.array(z.string().max(60)).max(30).default([]),
+  opening: z.boolean().default(false),
 });
 
 export const updateLedger = createServerFn({ method: "POST" })
@@ -63,8 +79,15 @@ Update continuity. Return JSON:
  "checkpoint": "2-4 sentences: where the story stands right now, pending actions, active conflict",
  "chapterComplete": false,  // true ONLY if a meaningful narrative stopping point was just reached
  "chapterTitle": "",
-  "chapterSummary": ""  // if complete: events, character development, NPCs, relationships, discoveries, consequences, world state, unresolved threads, next starting point
-}`,
+  "chapterSummary": "",  // if complete: events, character development, NPCs, relationships, discoveries, consequences, world state, unresolved threads, next starting point
+  "chapterImage": "",  // if complete: one sentence describing a picture of this chapter's central moment (only things that actually happened)
+  "newCast": [{"name": "", "look": ""}],  // appearance for each of these speakers with no portrait yet: ${JSON.stringify(data.needLooks)} plus any other important new character who appeared. look = one sentence: face, hair, eyes, age, build, current outfit, distinguishing marks; canon-accurate for canon characters. Use the exact names given.
+  "castChanges": [{"name": "", "look": ""}],  // ONLY if an existing cast member's appearance clearly changed in the latest exchange (new outfit, injury, haircut, transformation): full updated look
+  "scene": {"show": false, "description": ""}  // show=true ${data.opening ? "(this is the OPENING scene, so true)" : "ONLY if a new location was entered, the environment changed a lot, a major character entered or a major event/battle happened"}; description = one sentence of what the picture shows, matching time of day, weather and place; never show the player character doing anything they didn't do
+}
+
+=== CURRENT CAST (name: look) ===
+${data.cast.join("\n") || "(none)"}`,
         true,
       );
       return { result: JSON.stringify(parseJson(text)), error: null };
