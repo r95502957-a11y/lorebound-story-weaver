@@ -9,7 +9,7 @@ export function Pic({
   className,
   fallback,
 }: {
-  src?: string;
+  src?: string | undefined;
   alt: string;
   className?: string;
   fallback?: React.ReactNode;
@@ -39,7 +39,7 @@ export function Pic({
   );
 }
 
-export function Avatar({ src, name, size = "md" }: { src?: string; name: string; size?: "sm" | "md" | "lg" }) {
+export function Avatar({ src, name, size = "md" }: { src?: string | undefined; name: string; size?: "sm" | "md" | "lg" }) {
   const cls = size === "sm" ? "h-7 w-7 text-xs" : size === "lg" ? "h-16 w-16 text-xl" : "h-11 w-11 text-sm";
   const fb = (
     <div className={`${cls} flex shrink-0 items-center justify-center rounded-full bg-secondary font-display font-bold text-primary ring-1 ring-border`}>
