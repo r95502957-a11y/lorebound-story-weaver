@@ -2,7 +2,7 @@
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/udc_google_gemini";
 
 // Primary model first; if Google rate-limits one, the next is tried (each has its own free quota).
-export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest"];
+export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
 
 export type ChatTurn = { role: "user" | "model"; text: string };
 
@@ -33,25 +33,50 @@ async function open(model: string, instructions: string, turns: ChatTurn[], json
       ...(json ? { responseMimeType: "application/json" } : {}),
     },
   };
-  return fetch(`${GATEWAY_URL}/v1beta/models/${model}:streamGenerateContent?alt=sse`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body),
-  });
+  // Give up on a model that hasn't started answering in time and move to the next one.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FIRST_BYTE_TIMEOUT_MS);
+  try {
+    return await fetch(`${GATEWAY_URL}/v1beta/models/${model}:streamGenerateContent?alt=sse`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    if (ctrl.signal.aborted) return new Response("timed out waiting for model", { status: 504 });
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-/** Streams text deltas from Gemini, falling back to another model on rate limits. */
+const FIRST_BYTE_TIMEOUT_MS = 25000;
+
+/** Temporary failures (overload, timeout, rate limit, model retired) → try the next model. */
+export function shouldTryNextModel(status: number) {
+  return status === 404 || status === 408 || status === 429 || status >= 500;
+}
+
+/** Streams text deltas from Gemini, falling back to another model on temporary failures. */
 export async function geminiStream(instructions: string, turns: ChatTurn[], json = false) {
   let res: Response | null = null;
   let lastErr = "";
   for (const model of GEMINI_MODELS) {
-    res = await open(model, instructions, turns, json);
+    try {
+      res = await open(model, instructions, turns, json);
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      console.error(`Gemini ${model} network error: ${lastErr}`);
+      res = null;
+      continue;
+    }
     if (res.ok && res.body) break;
     lastErr = await res.text();
     console.error(`Gemini ${model} failed [${res.status}]: ${lastErr}`);
-    if (res.status !== 429 && res.status !== 503 && res.status !== 404) break;
+    if (!shouldTryNextModel(res.status)) break;
   }
-  if (!res || !res.ok || !res.body) throw new GeminiError(res?.status ?? 500, lastErr || "Gemini failed");
+  if (!res || !res.ok || !res.body) throw new GeminiError(res?.status ?? 502, lastErr || "Gemini failed");
   const reader = res.body.getReader();
   const dec = new TextDecoder();
   return (async function* () {
