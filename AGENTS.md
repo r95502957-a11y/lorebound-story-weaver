@@ -30,3 +30,4 @@ use the editor.
 <!-- LOVABLE:END -->
 
 - Stories persist in browser localStorage (src/lib/rp.ts); GM replies stream via /api/gm and a separate continuity pass (src/lib/rp.functions.ts) updates facts/HUD/chapters — keeps narration fast while memory stays structured.
+- All AI text calls go through src/lib/gemini.server.ts (user's own Gemini connector, model fallback list on rate limits), not the Lovable AI gateway — the user wants to run on their own key instead of workspace credits.
