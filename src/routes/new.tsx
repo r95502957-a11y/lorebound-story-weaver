@@ -3,7 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { buildCanonSheet } from "@/lib/rp.functions";
-import { emptyHud, putStory, uid } from "@/lib/rp";
+import { emptyHud, putStory, uid, type Story } from "@/lib/rp";
+import { newCastMember, sceneUrl } from "@/lib/visuals";
 
 export const Route = createFileRoute("/new")({
   head: () => ({
@@ -41,7 +42,7 @@ function NewStory() {
       return;
     }
     const id = uid();
-    putStory({
+    const story: Story = {
       id,
       title: res.title,
       fandom,
@@ -55,7 +56,13 @@ function NewStory() {
       messages: [],
       summarizedUpTo: 0,
       updatedAt: Date.now(),
-    });
+      style: res.style,
+      cast: [],
+    };
+    story.cover = sceneUrl(story, res.cover || `${res.title}, ${fandom}`);
+    const playerName = character.split(/[,.\n]/)[0]?.trim().slice(0, 40) || "You";
+    story.cast = [newCastMember(story, playerName, res.playerLook || character.slice(0, 300), true)];
+    putStory(story);
     nav({ to: "/story/$storyId", params: { storyId: id } });
   }
 

@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { deleteStory, loadStories, type Story } from "@/lib/rp";
+import { sceneUrl } from "@/lib/visuals";
+import { Pic } from "@/components/visuals";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -39,11 +41,18 @@ function Home() {
           {stories?.map((s) => {
             const last = s.messages[s.messages.length - 1];
             return (
-              <div key={s.id} className="flex items-stretch gap-2 rounded-2xl border border-border bg-card">
-                <Link to="/story/$storyId" params={{ storyId: s.id }} className="min-w-0 flex-1 p-4">
+              <div key={s.id} className="flex items-stretch gap-2 overflow-hidden rounded-2xl border border-border bg-card">
+                <Link to="/story/$storyId" params={{ storyId: s.id }} className="flex min-w-0 flex-1 items-center gap-3 p-3">
+                  <Pic
+                    src={s.cover || sceneUrl(s, `${s.title}, ${s.fandom}`)}
+                    alt=""
+                    className="h-20 w-20 shrink-0 rounded-xl"
+                  />
+                  <div className="min-w-0 flex-1">
                   <div className="text-xs uppercase tracking-widest text-accent">{s.fandom}</div>
                   <div className="font-display text-2xl font-bold">{s.title}</div>
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{last?.text ?? "…"}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{last?.text.replace(/\*/g, "") ?? "…"}</p>
+                  </div>
                 </Link>
                 <button
                   aria-label="Delete story"

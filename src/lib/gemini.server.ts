@@ -1,8 +1,14 @@
 // Server-only: talks to Google Gemini through the user's own connected key.
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/udc_google_gemini";
 
-// Primary model first; if Google rate-limits one, the next is tried (each has its own free quota).
-export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+// Fastest first; if Google rate-limits or overloads one, the next is tried (each has its own free quota).
+// Thinking is kept minimal where the model allows it: first words arrive in ~1s instead of ~5s.
+export const GEMINI_MODELS: { model: string; thinking: "minimal" | "low" }[] = [
+  { model: "gemini-3.5-flash", thinking: "minimal" },
+  { model: "gemini-3.8-flash", thinking: "low" },
+  { model: "gemini-3.1-flash-lite", thinking: "minimal" },
+  { model: "gemini-flash-latest", thinking: "low" },
+];
 
 export type ChatTurn = { role: "user" | "model"; text: string };
 
@@ -23,13 +29,18 @@ function headers() {
   };
 }
 
-async function open(model: string, instructions: string, turns: ChatTurn[], json: boolean) {
+async function open(
+  { model, thinking }: (typeof GEMINI_MODELS)[number],
+  instructions: string,
+  turns: ChatTurn[],
+  json: boolean,
+) {
   const body = {
     systemInstruction: { parts: [{ text: instructions }] },
     contents: turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
     generationConfig: {
       temperature: json ? 0.4 : 1,
-      thinkingConfig: { thinkingLevel: "low" },
+      thinkingConfig: { thinkingLevel: thinking },
       ...(json ? { responseMimeType: "application/json" } : {}),
     },
   };
@@ -51,7 +62,7 @@ async function open(model: string, instructions: string, turns: ChatTurn[], json
   }
 }
 
-const FIRST_BYTE_TIMEOUT_MS = 25000;
+const FIRST_BYTE_TIMEOUT_MS = 20000;
 
 /** Temporary failures (overload, timeout, rate limit, model retired) → try the next model. */
 export function shouldTryNextModel(status: number) {
@@ -62,18 +73,18 @@ export function shouldTryNextModel(status: number) {
 export async function geminiStream(instructions: string, turns: ChatTurn[], json = false) {
   let res: Response | null = null;
   let lastErr = "";
-  for (const model of GEMINI_MODELS) {
+  for (const m of GEMINI_MODELS) {
     try {
-      res = await open(model, instructions, turns, json);
+      res = await open(m, instructions, turns, json);
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
-      console.error(`Gemini ${model} network error: ${lastErr}`);
+      console.error(`Gemini ${m.model} network error: ${lastErr}`);
       res = null;
       continue;
     }
     if (res.ok && res.body) break;
     lastErr = await res.text();
-    console.error(`Gemini ${model} failed [${res.status}]: ${lastErr}`);
+    console.error(`Gemini ${m.model} failed [${res.status}]: ${lastErr.slice(0, 300)}`);
     if (!shouldTryNextModel(res.status)) break;
   }
   if (!res || !res.ok || !res.body) throw new GeminiError(res?.status ?? 502, lastErr || "Gemini failed");
