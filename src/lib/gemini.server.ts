@@ -1,0 +1,87 @@
+// Server-only: talks to Google Gemini through the user's own connected key.
+const GATEWAY_URL = "https://connector-gateway.lovable.dev/udc_google_gemini";
+
+// Primary model first; if Google rate-limits one, the next is tried (each has its own free quota).
+export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest"];
+
+export type ChatTurn = { role: "user" | "model"; text: string };
+
+export class GeminiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
+function headers() {
+  const lovable = process.env.LOVABLE_API_KEY;
+  const conn = process.env.UDC_GOOGLE_GEMINI_API_KEY;
+  if (!lovable || !conn) throw new GeminiError(500, "Gemini is not connected.");
+  return {
+    "content-type": "application/json",
+    Authorization: `Bearer ${lovable}`,
+    "X-Connection-Api-Key": conn,
+  };
+}
+
+async function open(model: string, instructions: string, turns: ChatTurn[], json: boolean) {
+  const body = {
+    systemInstruction: { parts: [{ text: instructions }] },
+    contents: turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
+    generationConfig: {
+      temperature: json ? 0.4 : 1,
+      thinkingConfig: { thinkingLevel: "low" },
+      ...(json ? { responseMimeType: "application/json" } : {}),
+    },
+  };
+  return fetch(`${GATEWAY_URL}/v1beta/models/${model}:streamGenerateContent?alt=sse`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+}
+
+/** Streams text deltas from Gemini, falling back to another model on rate limits. */
+export async function geminiStream(instructions: string, turns: ChatTurn[], json = false) {
+  let res: Response | null = null;
+  let lastErr = "";
+  for (const model of GEMINI_MODELS) {
+    res = await open(model, instructions, turns, json);
+    if (res.ok && res.body) break;
+    lastErr = await res.text();
+    console.error(`Gemini ${model} failed [${res.status}]: ${lastErr}`);
+    if (res.status !== 429 && res.status !== 503 && res.status !== 404) break;
+  }
+  if (!res || !res.ok || !res.body) throw new GeminiError(res?.status ?? 500, lastErr || "Gemini failed");
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  return (async function* () {
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line.startsWith("data:")) continue;
+        try {
+          const ev = JSON.parse(line.slice(5)) as {
+            candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[];
+          };
+          for (const p of ev.candidates?.[0]?.content?.parts ?? []) {
+            if (p.text && !p.thought) yield p.text;
+          }
+        } catch {
+          /* ignore partial lines */
+        }
+      }
+    }
+  })();
+}
+
+export async function geminiText(instructions: string, input: string, json = false) {
+  let text = "";
+  for await (const d of await geminiStream(instructions, [{ role: "user", text: input }], json)) text += d;
+  return text;
+}
