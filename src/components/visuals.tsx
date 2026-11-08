@@ -114,6 +114,7 @@ export function useTypewriter(target: string, active: boolean) {
       });
     }, 30);
     return () => clearInterval(t);
-  }, [active, target.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
   return active ? target.slice(0, shown) : target;
 }
