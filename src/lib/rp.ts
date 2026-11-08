@@ -1,5 +1,20 @@
 // Shared, browser-safe story types + localStorage store.
-export type Msg = { id: string; role: "user" | "gm"; text: string };
+export type Msg = {
+  id: string;
+  role: "user" | "gm";
+  text: string;
+  scene?: { image: string; caption: string }; // wide scene picture shown above this GM reply
+};
+
+export type CastMember = {
+  id: string;
+  name: string;
+  look: string; // stable appearance description used for the portrait
+  portrait: string; // image URL or uploaded data URL
+  custom?: boolean; // true when the player supplied their own picture
+  isPlayer?: boolean;
+  pastLooks?: string[]; // visual timeline: earlier appearances are kept, never overwritten
+};
 
 export type Hud = {
   location: string;
@@ -11,7 +26,7 @@ export type Hud = {
 };
 
 export type Fact = { id: string; text: string; level: "confirmed" | "inferred" };
-export type Chapter = { title: string; summary: string };
+export type Chapter = { title: string; summary: string; image?: string };
 
 export type Story = {
   id: string;
@@ -27,6 +42,9 @@ export type Story = {
   messages: Msg[];
   summarizedUpTo: number; // messages before this index are folded into chapters/checkpoint
   updatedAt: number;
+  style?: string; // art style for every picture in this story, e.g. "Naruto anime art style"
+  cover?: string;
+  cast?: CastMember[];
 };
 
 const KEY = "absolute-rp-stories-v1";
