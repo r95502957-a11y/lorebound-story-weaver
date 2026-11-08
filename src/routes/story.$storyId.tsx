@@ -385,7 +385,7 @@ function GmText({ msg, story, typing, onZoom }: { msg: Msg; story: Story; typing
   );
 }
 
-function SpeechBlock({ speaker, text, member, onZoom }: { speaker: string; text: string; member?: CastMember; onZoom: (u: string) => void }) {
+function SpeechBlock({ speaker, text, member, onZoom }: { speaker: string; text: string; member?: CastMember | undefined; onZoom: (u: string) => void }) {
   return (
     <div className="flex gap-3 rounded-2xl border border-border bg-card/60 p-3">
       <button type="button" onClick={(e) => { e.stopPropagation(); if (member?.portrait) onZoom(member.portrait); }} className="shrink-0 self-start">
