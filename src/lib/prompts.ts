@@ -34,8 +34,20 @@ export function buildContext(s: Story) {
   const facts = s.facts.map((f) => `- [${f.level}] ${f.text}`).join("\n") || "(none yet)";
   const chapters =
     s.chapters.map((c, i) => `Chapter ${i + 1} — ${c.title}: ${c.summary}`).join("\n") || "(none yet)";
+  const player = s.cast?.find((c) => c.isPlayer)?.name || s.character.split(/[,.\n]/)[0]?.trim() || "the player character";
   return `${GM_RULES}
 
+THE PLAYER CHARACTER IS: ${player}
+- ${player} is controlled ONLY by the player. Never write a single line of ${player}'s dialogue, never give ${player} a **${player}:** dialogue paragraph, never describe ${player}'s actions, decisions, expressions or thoughts beyond what the player wrote. Even if ${player} is a canon character, you do NOT play them — the player does.
+- Describe only what ${player} perceives and how the world reacts, then stop and let the player act.
+`;
+}
+
+function contextBody(s: Story) {
+  const facts = s.facts.map((f) => `- [${f.level}] ${f.text}`).join("\n") || "(none yet)";
+  const chapters =
+    s.chapters.map((c, i) => `Chapter ${i + 1} — ${c.title}: ${c.summary}`).join("\n") || "(none yet)";
+  return `
 === STORY SETUP ===
 Fandom/world: ${s.fandom}
 Player character: ${s.character}

@@ -46,7 +46,7 @@ PLAYER_CANON: "yes" if the player character is an existing canon character, othe
         cover: line("COVER"),
         playerLook: line("PLAYER_LOOK"),
         wiki: /^none$/i.test(line("WIKI")) ? "" : line("WIKI").replace(/["']/g, ""),
-        playerCanon: /^yes/i.test(line("PLAYER_CANON")),
+        playerCanon: /^\W*yes/i.test(line("PLAYER_CANON")),
         error: null,
       };
     } catch (e) {
