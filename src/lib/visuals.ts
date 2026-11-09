@@ -69,8 +69,9 @@ export function speakersIn(text: string) {
   return [...new Set(parseBlocks(text).flatMap((b) => (b.kind === "speech" ? [b.speaker] : [])))];
 }
 
-export function newCastMember(s: Story, name: string, look: string, isPlayer = false): CastMember {
-  return { id: uid(), name, look, portrait: portraitUrl(s, name, look), isPlayer };
+/** Portrait starts empty: a real picture is looked up first, AI only if none exists. */
+export function newCastMember(_s: Story, name: string, look: string, isPlayer = false, canon = true): CastMember {
+  return { id: uid(), name, look, portrait: "", isPlayer, canon };
 }
 
 /** Shrinks an uploaded picture so stories stay small enough to save on the device. */

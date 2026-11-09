@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { buildCanonSheet } from "@/lib/rp.functions";
+import { findPictures } from "@/lib/pictures.functions";
 import { emptyHud, putStory, uid, type Story } from "@/lib/rp";
 import { newCastMember, sceneUrl } from "@/lib/visuals";
 
@@ -57,11 +58,16 @@ function NewStory() {
       summarizedUpTo: 0,
       updatedAt: Date.now(),
       style: res.style,
+      wiki: res.wiki,
       cast: [],
     };
-    story.cover = sceneUrl(story, res.cover || `${res.title}, ${fandom}`);
     const playerName = character.split(/[,.\n]/)[0]?.trim().slice(0, 40) || "You";
-    story.cast = [newCastMember(story, playerName, res.playerLook || character.slice(0, 300), true)];
+    story.cast = [newCastMember(story, playerName, res.playerLook || character.slice(0, 300), true, res.playerCanon)];
+    // Cover: real art from the fandom's wiki if there is one, otherwise an AI picture of the described cover.
+    const found = await findPictures({ data: { fandom, wiki: res.wiki || undefined, items: [{ key: "cover", kind: "cover", name: res.title }] } }).catch(() => null);
+    const cov = found?.results[0];
+    story.cover = cov?.url ?? sceneUrl(story, res.cover || `${res.title}, ${fandom}`);
+    story.coverSource = cov?.url ? (cov.source ?? "wiki") : "ai";
     putStory(story);
     nav({ to: "/story/$storyId", params: { storyId: id } });
   }

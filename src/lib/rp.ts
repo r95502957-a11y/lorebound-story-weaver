@@ -3,7 +3,8 @@ export type Msg = {
   id: string;
   role: "user" | "gm";
   text: string;
-  scene?: { image: string; caption: string; source?: PicSource }; // wide scene picture shown above this GM reply
+  // wide scene picture shown above this GM reply; place/photo drive the real-picture lookup
+  scene?: { image: string; caption: string; source?: PicSource; place?: string; photo?: string };
 };
 
 export type PicSource = "wiki" | "photo" | "ai" | "upload";
