@@ -39,6 +39,7 @@ export function Pic({
     <img
       src={state.url}
       alt={alt}
+      referrerPolicy="no-referrer"
       onError={() => setBroken(true)}
       className={`${className} bg-secondary object-cover`}
     />

@@ -517,7 +517,7 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
                       setMember(c.id, {
                         look: t.trim(),
                         pastLooks: [...(c.pastLooks ?? []), c.look],
-                        portrait: c.custom ? c.portrait : portraitUrl(story, c.name, t.trim()),
+                        portrait: c.custom || c.source !== "ai" ? c.portrait : portraitUrl(story, c.name, t.trim()),
                       });
                     }}
                   >

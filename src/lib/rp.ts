@@ -16,7 +16,7 @@ export type CastMember = {
   portrait: string; // image URL or uploaded data URL
   custom?: boolean; // true when the player supplied their own picture
   canon?: boolean; // canon character → look for their official art
-  source?: PicSource; // where the current portrait came from
+  source?: PicSource | undefined; // where the current portrait came from; unset = look it up
   isPlayer?: boolean;
   pastLooks?: string[]; // visual timeline: earlier appearances are kept, never overwritten
 };
