@@ -33,21 +33,25 @@ Start your answer with these 4 lines exactly, then the sheet:
 TITLE: a short story title
 STYLE: the art style of the source for illustrations (e.g. "Naruto anime style, cel shaded" or "dark realistic medieval fantasy painting")
 COVER: one sentence describing a cover illustration showing the world, setting, atmosphere and the player character (no text in image)
-PLAYER_LOOK: one sentence of the player character's appearance (face, hair, eyes, age, build, outfit, distinguishing marks); canon-accurate if a canon character`,
+PLAYER_LOOK: one sentence of the player character's appearance (face, hair, eyes, age, build, outfit, distinguishing marks); canon-accurate if a canon character
+WIKI: the subdomain of this fandom's main fandom.com wiki (e.g. "naruto" for naruto.fandom.com, "bokunoheroacademia" for My Hero Academia), or "none" for an original world
+PLAYER_CANON: "yes" if the player character is an existing canon character, otherwise "no"`,
       );
       const line = (k: string) => text.match(new RegExp(`^\\s*\\**${k}:?\\**:?\\s*(.+)$`, "m"))?.[1]?.trim() ?? "";
-      const canon = text.replace(/^\s*\**(TITLE|STYLE|COVER|PLAYER_LOOK):.*\n?/gm, "").trim();
+      const canon = text.replace(/^\s*\**(TITLE|STYLE|COVER|PLAYER_LOOK|WIKI|PLAYER_CANON):.*\n?/gm, "").trim();
       return {
         canon,
         title: line("TITLE") || data.fandom,
         style: line("STYLE"),
         cover: line("COVER"),
         playerLook: line("PLAYER_LOOK"),
+        wiki: /^none$/i.test(line("WIKI")) ? "" : line("WIKI").replace(/["']/g, ""),
+        playerCanon: /^yes/i.test(line("PLAYER_CANON")),
         error: null,
       };
     } catch (e) {
       console.error(e);
-      return { canon: "", title: data.fandom, style: "", cover: "", playerLook: "", error: "Couldn't prepare canon notes." };
+      return { canon: "", title: data.fandom, style: "", cover: "", playerLook: "", wiki: "", playerCanon: false, error: "Couldn't prepare canon notes." };
     }
   });
 
@@ -81,9 +85,9 @@ Update continuity. Return JSON:
  "chapterTitle": "",
   "chapterSummary": "",  // if complete: events, character development, NPCs, relationships, discoveries, consequences, world state, unresolved threads, next starting point
   "chapterImage": "",  // if complete: one sentence describing a picture of this chapter's central moment (only things that actually happened)
-  "newCast": [{"name": "", "look": ""}],  // appearance for each of these speakers with no portrait yet: ${JSON.stringify(data.needLooks)} plus any other important new character who appeared. look = one sentence: face, hair, eyes, age, build, current outfit, distinguishing marks; canon-accurate for canon characters. Use the exact names given.
+  "newCast": [{"name": "", "look": "", "canon": true}],  // canon = true if an existing character of the source material, false if original  // appearance for each of these speakers with no portrait yet: ${JSON.stringify(data.needLooks)} plus any other important new character who appeared. look = one sentence: face, hair, eyes, age, build, current outfit, distinguishing marks; canon-accurate for canon characters. Use the exact names given.
   "castChanges": [{"name": "", "look": ""}],  // ONLY if an existing cast member's appearance clearly changed in the latest exchange (new outfit, injury, haircut, transformation): full updated look
-  "scene": {"show": false, "description": ""}  // show=true ${data.opening ? "(this is the OPENING scene, so true)" : "ONLY if a new location was entered, the environment changed a lot, a major character entered or a major event/battle happened"}; description = one sentence of what the picture shows, matching time of day, weather and place; never show the player character doing anything they didn't do
+  "scene": {"show": false, "description": "", "place": "", "photo": ""}  // show=true ${data.opening ? "(this is the OPENING scene, so true)" : "ONLY if a new location was entered, the environment changed a lot, a major character entered or a major event/battle happened"}; description = one sentence of what the picture shows, matching time of day, weather and place; never show the player character doing anything they didn't do; place = the canon name of the location if it exists in the source (e.g. "Hokage Residence"), else ""; photo = 2-5 plain words to search a real photo of the scenery (e.g. "misty pine forest dawn")
 }
 
 === CURRENT CAST (name: look) ===
