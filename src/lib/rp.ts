@@ -52,6 +52,8 @@ export type Story = {
   coverSource?: PicSource;
   wiki?: string; // fandom wiki subdomain used for real pictures, e.g. "naruto"
   cast?: CastMember[];
+  // living world: what others are doing off-screen + canon events approaching on the timeline
+  world?: { offscreen: string[]; upcoming: string[] };
 };
 
 const KEY = "absolute-rp-stories-v1";

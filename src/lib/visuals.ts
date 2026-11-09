@@ -49,12 +49,15 @@ export function findCast(cast: CastMember[] | undefined, name: string) {
   );
 }
 
-export type Block = { kind: "narration"; text: string } | { kind: "speech"; speaker: string; text: string };
+export type Block =
+  | { kind: "narration"; text: string }
+  | { kind: "speech"; speaker: string; text: string }
+  | { kind: "meanwhile"; place: string; blocks: Block[] };
 
 const SPEECH = /^\s*\*\*([^*\n]{1,40}?):?\*\*:?\s*(.*)$/s;
+const MEANWHILE = /^\s*\**\[\s*MEANWHILE\s*:?\s*([^\]]*)\]\**\s*([\s\S]*)$/i;
 
-/** Splits a GM reply into narration paragraphs and per-speaker dialogue blocks. */
-export function parseBlocks(text: string): Block[] {
+function parseFlat(text: string): Block[] {
   const out: Block[] = [];
   for (const para of text.split(/\n\s*\n|\n(?=\s*\*\*[^*\n]{1,40}:\*\*)/)) {
     if (!para.trim()) continue;
@@ -65,8 +68,22 @@ export function parseBlocks(text: string): Block[] {
   return out;
 }
 
+/** Splits a GM reply into narration, per-speaker dialogue, and an optional "Meanwhile" cutaway. */
+export function parseBlocks(text: string): Block[] {
+  const idx = text.search(/^\s*\**\[\s*MEANWHILE/im);
+  if (idx < 0) return parseFlat(text);
+  const m = text.slice(idx).match(MEANWHILE);
+  const main = parseFlat(text.slice(0, idx));
+  if (!m) return main;
+  return [...main, { kind: "meanwhile", place: (m[1] ?? "").trim(), blocks: parseFlat(m[2] ?? "") }];
+}
+
+function speakersOf(blocks: Block[]): string[] {
+  return blocks.flatMap((b) => (b.kind === "speech" ? [b.speaker] : b.kind === "meanwhile" ? speakersOf(b.blocks) : []));
+}
+
 export function speakersIn(text: string) {
-  return [...new Set(parseBlocks(text).flatMap((b) => (b.kind === "speech" ? [b.speaker] : [])))];
+  return [...new Set(speakersOf(parseBlocks(text)))];
 }
 
 /** Portrait starts empty: a real picture is looked up first, AI only if none exists. */

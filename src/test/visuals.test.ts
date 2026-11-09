@@ -15,6 +15,19 @@ describe("speaker portraits", () => {
     expect(speakersIn(text)).toEqual(["Aizawa", "Midoriya", "Bakugo"]);
   });
 
+  it("separates a Meanwhile cutaway from the player's scene, keeping its speakers", () => {
+    const text = `You step into the hall.\n\n[MEANWHILE: League of Villains hideout]\n\nThe bar is dim.\n\n**Shigaraki:** "Soon."`;
+    const blocks = parseBlocks(text);
+    expect(blocks[0]).toEqual({ kind: "narration", text: "You step into the hall." });
+    const mw = blocks[1];
+    expect(mw?.kind).toBe("meanwhile");
+    if (mw?.kind === "meanwhile") {
+      expect(mw.place).toBe("League of Villains hideout");
+      expect(mw.blocks.map((b) => b.kind)).toEqual(["narration", "speech"]);
+    }
+    expect(speakersIn(text)).toEqual(["Shigaraki"]);
+  });
+
   it("matches a short speaker name to the full cast name", () => {
     const cast: CastMember[] = [
       { id: "1", name: "Kakashi Hatake", look: "", portrait: "k" },
