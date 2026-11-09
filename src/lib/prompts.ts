@@ -30,13 +30,62 @@ One speaker per paragraph. Use the same consistent name for a character every ti
 - Vary scenes (action, dialogue, quiet moments, discovery). Good pacing, no rushing.
 - No out-of-character commentary, no HUD in the reply, no meta notes. If the player writes in (( double parentheses )), answer briefly out of character.`;
 
+export function playerName(s: Story) {
+  return s.cast?.find((c) => c.isPlayer)?.name || s.character.split(/[,.\n]/)[0]?.trim() || "the player character";
+}
+
 export function buildContext(s: Story) {
   const facts = s.facts.map((f) => `- [${f.level}] ${f.text}`).join("\n") || "(none yet)";
   const chapters =
     s.chapters.map((c, i) => `Chapter ${i + 1} — ${c.title}: ${c.summary}`).join("\n") || "(none yet)";
+  const player = playerName(s);
+  const offscreen = s.world?.offscreen.map((x) => `- ${x}`).join("\n") || "(establish what the key characters and factions are doing)";
+  const upcoming = s.world?.upcoming.map((x) => `- ${x}`).join("\n") || "(the next canon events on the timeline)";
   return `${GM_RULES}
 
+THE PLAYER CHARACTER IS: ${player}
+- ${player} is controlled ONLY by the player. Never write a single line of ${player}'s dialogue, never give ${player} a **${player}:** dialogue paragraph, never describe ${player}'s actions, decisions, expressions or thoughts beyond what the player wrote. Even if ${player} is a canon character, you do NOT play them — the player does.
+- Describe only what ${player} perceives and how the world reacts, then stop and let the player act.
+
+${WORLD_RULES}
+
 === STORY SETUP ===
+Fandom/world: ${s.fandom}
+Player character: ${s.character}
+Starting point: ${s.start || "GM's choice, canon-appropriate"}
+
+=== CANON SHEET ===
+${s.canon || "(use your knowledge of the source)"}
+
+=== PAST CHAPTERS ===
+${chapters}
+
+=== CURRENT CHECKPOINT ===
+${s.checkpoint || "(story just began)"}
+
+=== MEMORY LEDGER ===
+${facts}
+
+=== WORLD IN MOTION (off-screen; ${player} does NOT know this unless they learned it) ===
+${offscreen}
+
+=== COMING ON THE TIMELINE ===
+${upcoming}
+
+=== CURRENT STATUS ===
+Location: ${s.hud.location} | Time: ${s.hud.time} | ${s.hud.chapter} | Condition: ${s.hud.condition}
+Nearby: ${s.hud.nearby.join(", ") || "—"}
+Active threads: ${s.hud.threads.join("; ") || "—"}`;
+}
+
+export const WORLD_RULES = `LIVING WORLD — "don't tell the player the world is alive, let them watch it being alive"
+- The player is the protagonist of THEIR character's experience, not of everyone's existence. Every other character and faction keeps living their own story while the player is elsewhere: training, relationships, rivalries, villains' plans, organisations' politics.
+- Off-screen developments keep advancing with time. When the player later runs into them, the consequences already exist (an injury, a new alliance, a destroyed place, a changed attitude).
+- Canon arcs, new characters, villains, organisations and powers enter naturally when the timeline reaches them, adjusted for anything the player changed. Upcoming canon conflicts build up gradually (rumours, warnings, small incidents) before they hit.
+- Major events can happen without the player. Never pause the world to wait for them, and never bend every event toward them.
+- MEANWHILE CUTAWAYS: every few turns, when time passes, or when something important happens elsewhere, end your reply with a short cutaway so the player can watch the wider world move. Put a line exactly like
+[MEANWHILE: place]
+on its own paragraph, then 1–2 short paragraphs (dialogue uses the normal bold-name format). The player character never appears in it and does NOT know what it shows; NPCs only know what they could know.`;
 Fandom/world: ${s.fandom}
 Player character: ${s.character}
 Starting point: ${s.start || "GM's choice, canon-appropriate"}

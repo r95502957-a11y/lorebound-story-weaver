@@ -3,8 +3,11 @@ export type Msg = {
   id: string;
   role: "user" | "gm";
   text: string;
-  scene?: { image: string; caption: string }; // wide scene picture shown above this GM reply
+  // wide scene picture shown above this GM reply; place/photo drive the real-picture lookup
+  scene?: { image: string; caption: string; source?: PicSource; place?: string; photo?: string };
 };
+
+export type PicSource = "wiki" | "photo" | "ai" | "upload";
 
 export type CastMember = {
   id: string;
@@ -12,6 +15,8 @@ export type CastMember = {
   look: string; // stable appearance description used for the portrait
   portrait: string; // image URL or uploaded data URL
   custom?: boolean; // true when the player supplied their own picture
+  canon?: boolean; // canon character → look for their official art
+  source?: PicSource | undefined; // where the current portrait came from; unset = look it up
   isPlayer?: boolean;
   pastLooks?: string[]; // visual timeline: earlier appearances are kept, never overwritten
 };
@@ -44,7 +49,11 @@ export type Story = {
   updatedAt: number;
   style?: string; // art style for every picture in this story, e.g. "Naruto anime art style"
   cover?: string;
+  coverSource?: PicSource;
+  wiki?: string; // fandom wiki subdomain used for real pictures, e.g. "naruto"
   cast?: CastMember[];
+  // living world: what others are doing off-screen + canon events approaching on the timeline
+  world?: { offscreen: string[]; upcoming: string[] };
 };
 
 const KEY = "absolute-rp-stories-v1";

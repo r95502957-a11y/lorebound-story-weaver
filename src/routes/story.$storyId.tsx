@@ -5,6 +5,8 @@ import { ArrowLeft, BookOpen, Pencil, RotateCcw, Send, Trash2, X } from "lucide-
 import { getStory, putStory, uid, type CastMember, type Fact, type Hud, type Msg, type Story } from "@/lib/rp";
 import { buildContext, recentTranscript } from "@/lib/prompts";
 import { updateLedger } from "@/lib/rp.functions";
+import { findPictures } from "@/lib/pictures.functions";
+import { applyPictures, needsAiOnly, pendingPictures } from "@/lib/real-pictures";
 import {
   findCast,
   newCastMember,
@@ -38,7 +40,7 @@ function renderText(text: string) {
   });
 }
 
-type Look = { name?: string; look?: string };
+type Look = { name?: string; look?: string; canon?: boolean };
 type LedgerResult = {
   newFacts?: { text?: string; level?: string }[];
   removeFacts?: string[];
@@ -50,7 +52,7 @@ type LedgerResult = {
   chapterImage?: string;
   newCast?: Look[];
   castChanges?: Look[];
-  scene?: { show?: boolean; description?: string };
+  scene?: { show?: boolean; description?: string; place?: string; photo?: string };
 };
 
 function StoryPage() {
@@ -113,7 +115,7 @@ function StoryPage() {
       let nextCast: CastMember[] = [...(cur.cast ?? [])];
       for (const c of r.newCast ?? []) {
         if (!c.name?.trim() || findCast(nextCast, c.name)) continue;
-        nextCast.push(newCastMember(next, c.name.trim(), c.look?.trim() ?? ""));
+        nextCast.push(newCastMember(next, c.name.trim(), c.look?.trim() ?? "", false, c.canon !== false));
       }
       for (const c of r.castChanges ?? []) {
         const m = c.name ? findCast(nextCast, c.name) : undefined;
@@ -124,7 +126,8 @@ function StoryPage() {
                 ...x,
                 pastLooks: [...(x.pastLooks ?? []), x.look],
                 look: c.look!.trim(),
-                portrait: x.custom ? x.portrait : portraitUrl(next, x.name, c.look!.trim()),
+                // official art stays; only AI portraits are redrawn for the new look
+                portrait: x.custom || x.source !== "ai" ? x.portrait : portraitUrl(next, x.name, c.look!.trim()),
               }
             : x,
         );
@@ -132,9 +135,9 @@ function StoryPage() {
       next.cast = nextCast;
 
       if (r.scene?.show && r.scene.description && lastGm) {
-        const desc = r.scene.description;
+        const { description: desc, place = "", photo = "" } = r.scene;
         next.messages = next.messages.map((m) =>
-          m.id === lastGm.id && !m.scene ? { ...m, scene: { image: sceneUrl(next, desc), caption: desc } } : m,
+          m.id === lastGm.id && !m.scene ? { ...m, scene: { image: "", caption: desc, place, photo } } : m,
         );
       }
 
@@ -209,6 +212,24 @@ function StoryPage() {
     }
   }, [storyId, generate]);
 
+  // Real pictures: look up official art / real places for anything new; AI picture only as a fallback.
+  const resolving = useRef(new Set<string>());
+  useEffect(() => {
+    if (!story) return;
+    const todo = pendingPictures(story).filter((r) => !resolving.current.has(r.key));
+    if (!todo.length) {
+      if (needsAiOnly(story)) commit(applyPictures(story, []));
+      return;
+    }
+    todo.forEach((r) => resolving.current.add(r.key));
+    void findPictures({ data: { fandom: story.fandom, wiki: story.wiki || undefined, items: todo.slice(0, 20) } })
+      .catch(() => ({ results: todo.map((r) => ({ key: r.key, url: null, source: null })) }))
+      .then(({ results }) => {
+        const cur = ref.current;
+        if (cur && cur.id === story.id) commit(applyPictures(cur, results));
+      });
+  }, [story, commit]);
+
   // Keep the newest words in view while they appear, unless the reader scrolled up.
   useEffect(() => {
     const el = scroller.current;
@@ -269,7 +290,7 @@ function StoryPage() {
 
   const lastGmId = [...story.messages].reverse().find((m) => m.role === "gm")?.id;
   const player = story.cast?.find((c) => c.isPlayer);
-  const cover = story.cover || sceneUrl(story, `${story.title}, ${story.fandom}`);
+  const cover = story.cover || undefined;
   const chapterAt = new Map(story.chapters.map((c, i) => [c.endsAt ?? -1, { c, i }]));
 
   return (
@@ -288,7 +309,7 @@ function StoryPage() {
 
       <main ref={scroller} className="flex-1 overflow-y-auto px-4 py-4">
         <div ref={inner} className="mx-auto max-w-2xl space-y-5">
-          <button onClick={() => setZoom(cover)} className="block w-full overflow-hidden rounded-2xl border border-border text-left">
+          <button onClick={() => cover && setZoom(cover)} className="block w-full overflow-hidden rounded-2xl border border-border text-left">
             <Pic src={cover} alt={story.title} className="aspect-video w-full" />
             <div className="bg-card px-4 py-3">
               <div className="text-xs uppercase tracking-widest text-accent">{story.fandom}</div>
@@ -436,7 +457,7 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
   const cast = story.cast ?? [];
   const setMember = (id: string, patch: Partial<CastMember>) =>
     onChange({ ...story, cast: cast.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
-  const cover = story.cover || sceneUrl(story, `${story.title}, ${story.fandom}`);
+  const cover = story.cover || undefined;
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-background/60 backdrop-blur-sm" onClick={onClose}>
       <div className="max-h-[85dvh] w-full overflow-y-auto rounded-t-3xl border-t border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
@@ -452,13 +473,13 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
         {tab === "status" && (
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div className="col-span-2 overflow-hidden rounded-xl bg-secondary">
-              <button className="block w-full" onClick={() => onZoom(cover)}><Pic src={cover} alt="Story cover" className="aspect-video w-full" /></button>
+              <button className="block w-full" onClick={() => cover && onZoom(cover)}><Pic src={cover} alt="Story cover" className="aspect-video w-full" /></button>
               <div className="flex items-center justify-between gap-2 p-3">
                 <dt className="text-xs text-muted-foreground">Story cover</dt>
                 <PictureControls
                   maxUpload={1024}
-                  onReroll={() => onChange({ ...story, cover: sceneUrl(story, `${story.title}, ${story.fandom}`, Math.floor(Math.random() * 1e6)) })}
-                  onSet={(u) => onChange({ ...story, cover: u })}
+                  onReroll={() => onChange({ ...story, coverSource: "ai", cover: sceneUrl(story, `${story.title}, ${story.fandom}`, Math.floor(Math.random() * 1e6)) })}
+                  onSet={(u) => onChange({ ...story, coverSource: "upload", cover: u })}
                 />
               </div>
             </div>
@@ -479,9 +500,15 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
                   <div className="font-display text-lg font-bold leading-tight">{c.name}{c.isPlayer && <span className="ml-2 rounded bg-primary px-1.5 text-[10px] uppercase text-primary-foreground">You</span>}</div>
                   <p className="text-muted-foreground">{c.look || "—"}</p>
                   <PictureControls
-                    onReroll={() => setMember(c.id, { custom: false, portrait: portraitUrl(story, c.name, c.look, seedFrom(c.name) + Math.floor(Math.random() * 1e5)) })}
-                    onSet={(u) => setMember(c.id, { custom: true, portrait: u })}
+                    onReroll={() => setMember(c.id, { custom: false, source: "ai", portrait: portraitUrl(story, c.name, c.look, seedFrom(c.name) + Math.floor(Math.random() * 1e5)) })}
+                    onSet={(u) => setMember(c.id, { custom: true, source: "upload", portrait: u })}
                   />
+                  <div className="flex flex-wrap items-center gap-3 text-xs">
+                    <span className="text-muted-foreground">{c.source === "wiki" ? "Official art" : c.source === "upload" ? "Your picture" : c.source === "ai" ? "AI picture" : "Finding picture…"}</span>
+                    {c.source !== "wiki" && (
+                      <button className="text-primary underline" onClick={() => setMember(c.id, { custom: false, canon: true, source: undefined })}>Find real picture</button>
+                    )}
+                  </div>
                   <button
                     className="text-xs text-primary underline"
                     onClick={() => {
@@ -490,7 +517,7 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
                       setMember(c.id, {
                         look: t.trim(),
                         pastLooks: [...(c.pastLooks ?? []), c.look],
-                        portrait: c.custom ? c.portrait : portraitUrl(story, c.name, t.trim()),
+                        portrait: c.custom || c.source !== "ai" ? c.portrait : portraitUrl(story, c.name, t.trim()),
                       });
                     }}
                   >

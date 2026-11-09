@@ -44,7 +44,7 @@ function Home() {
               <div key={s.id} className="flex items-stretch gap-2 overflow-hidden rounded-2xl border border-border bg-card">
                 <Link to="/story/$storyId" params={{ storyId: s.id }} className="flex min-w-0 flex-1 items-center gap-3 p-3">
                   <Pic
-                    src={s.cover || sceneUrl(s, `${s.title}, ${s.fandom}`)}
+                    src={s.cover || (s.coverSource ? sceneUrl(s, `${s.title}, ${s.fandom}`) : undefined)}
                     alt=""
                     className="h-20 w-20 shrink-0 rounded-xl"
                   />
