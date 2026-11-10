@@ -3,6 +3,7 @@ export type Msg = {
   id: string;
   role: "user" | "gm";
   text: string;
+  ooc?: boolean; // out-of-character talk between player and GM; the story doesn't move
   // wide scene picture shown above this GM reply; place/photo drive the real-picture lookup
   scene?: { image: string; caption: string; source?: PicSource; place?: string; photo?: string };
 };
@@ -54,7 +55,61 @@ export type Story = {
   cast?: CastMember[];
   // living world: what others are doing off-screen + canon events approaching on the timeline
   world?: { offscreen: string[]; upcoming: string[] };
+  setup?: StorySetup; // everything the player chose before the story began
 };
+
+/** Full story setup chosen on the "Begin a story" screen. Empty strings = GM's choice. */
+export type StorySetup = {
+  canonMode: string; // "Strict canon" | "Canon, changed by my choices" | "Alternate universe"
+  worldChanges: string;
+  name: string;
+  isCanonCharacter: boolean;
+  age: string;
+  look: string;
+  personality: string;
+  abilities: string;
+  backstory: string;
+  goal: string;
+  relationships: string;
+  premise: string;
+  genres: string[];
+  tone: string;
+  pace: string;
+  romance: string;
+  violence: string;
+  avoid: string;
+  length: string;
+  pov: string;
+  oocQuestions: string;
+};
+
+/** The setup as plain lines for the Game Master; unset choices are skipped. */
+export function setupLines(s: StorySetup | undefined): string[] {
+  if (!s) return [];
+  const rows: [string, string][] = [
+    ["Canon mode", s.canonMode],
+    ["What's different in this world", s.worldChanges],
+    ["Player character name", s.name + (s.isCanonCharacter ? " (an existing canon character)" : " (original character)")],
+    ["Age", s.age],
+    ["Appearance", s.look],
+    ["Personality", s.personality],
+    ["Abilities and their limits", s.abilities],
+    ["Backstory", s.backstory],
+    ["Goal / motivation", s.goal],
+    ["Starting relationships", s.relationships],
+    ["Story premise / what it's about", s.premise],
+    ["Genres", s.genres.join(", ")],
+    ["Tone", s.tone],
+    ["Pacing", s.pace],
+    ["Romance", s.romance],
+    ["Violence / gore", s.violence],
+    ["Never include", s.avoid],
+    ["Reply length", s.length],
+    ["Narration point of view", s.pov],
+    ["GM asking OOC questions", s.oocQuestions],
+  ];
+  return rows.filter(([, v]) => v.trim()).map(([k, v]) => `${k}: ${v.trim()}`);
+}
 
 const KEY = "absolute-rp-stories-v1";
 
