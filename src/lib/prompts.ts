@@ -1,5 +1,10 @@
 import type { Story } from "./rp";
-import { RECENT_WINDOW } from "./rp";
+import { RECENT_WINDOW, setupLines } from "./rp";
+
+/** What the Game Master receives for one message; OOC player messages are wrapped in (( )). */
+export function gmText(m: { role: "user" | "gm"; text: string; ooc?: boolean }) {
+  return m.role === "user" && m.ooc ? `((OOC: ${m.text}))` : m.text;
+}
 
 export const GM_RULES = `You are the Game Master of "Absolute RP". Core principle: the player controls their character; you control the world. Neither side steals the other's authority.
 
@@ -28,7 +33,13 @@ STYLE
 **Kakashi:** "Stay sharp." He flips a page of his book.
 One speaker per paragraph. Use the same consistent name for a character every time. Narration paragraphs never start with a bold name. Never use this format for the player character.
 - Vary scenes (action, dialogue, quiet moments, discovery). Good pacing, no rushing.
-- No out-of-character commentary, no HUD in the reply, no meta notes. If the player writes in (( double parentheses )), answer briefly out of character.`;
+- No out-of-character commentary inside the story, no HUD in the reply, no meta notes (except the OOC rules below).
+
+OOC (OUT OF CHARACTER) TALK
+- A player message wrapped in (( double parentheses )) is OOC: the player is talking to YOU, the GM, not to the story. No character hears it.
+  - If it's a question or request (about the world, canon, rules, what their character knows, a change they want), reply ONLY out of character: one paragraph starting exactly with [OOC] , friendly, short and direct. No narration, the story does not move. Don't spoil things their character couldn't know unless they clearly ask for spoilers.
+  - If it answers an OOC question you asked, don't reply OOC — just continue the story, using their answer.
+- You may ask the player an OOC question yourself, but ONLY when you genuinely need something only the player can decide (an unclear or ambiguous action, an important backstory detail that matters right now, a big direction choice about the story). Never ask about what NPCs or the world do — you decide those. Put it as the very LAST paragraph of your reply, starting exactly with [OOC] , one or two short questions. Never replace the story with questions; keep it rare.`;
 
 export function playerName(s: Story) {
   return s.cast?.find((c) => c.isPlayer)?.name || s.character.split(/[,.\n]/)[0]?.trim() || "the player character";
@@ -41,6 +52,7 @@ export function buildContext(s: Story) {
   const player = playerName(s);
   const offscreen = s.world?.offscreen.map((x) => `- ${x}`).join("\n") || "(establish what the key characters and factions are doing)";
   const upcoming = s.world?.upcoming.map((x) => `- ${x}`).join("\n") || "(the next canon events on the timeline)";
+  const setup = setupLines(s.setup).map((x) => `- ${x}`).join("\n");
   return `${GM_RULES}
 
 THE PLAYER CHARACTER IS: ${player}
@@ -53,7 +65,10 @@ ${WORLD_RULES}
 Fandom/world: ${s.fandom}
 Player character: ${s.character}
 Starting point: ${s.start || "GM's choice, canon-appropriate"}
-
+${setup ? `
+=== PLAYER'S STORY SETTINGS (chosen before the story began; follow them exactly, they override the defaults above) ===
+${setup}
+` : ""}
 === CANON SHEET ===
 ${s.canon || "(use your knowledge of the source)"}
 

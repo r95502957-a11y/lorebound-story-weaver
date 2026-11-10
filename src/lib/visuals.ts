@@ -52,7 +52,8 @@ export function findCast(cast: CastMember[] | undefined, name: string) {
 export type Block =
   | { kind: "narration"; text: string }
   | { kind: "speech"; speaker: string; text: string }
-  | { kind: "meanwhile"; place: string; blocks: Block[] };
+  | { kind: "meanwhile"; place: string; blocks: Block[] }
+  | { kind: "ooc"; text: string };
 
 const SPEECH = /^\s*\*\*([^*\n]{1,40}?):?\*\*:?\s*(.*)$/s;
 const MEANWHILE = /^\s*\**\[\s*MEANWHILE\s*:?\s*([^\]]*)\]\**\s*([\s\S]*)$/i;
@@ -70,6 +71,17 @@ function parseFlat(text: string): Block[] {
 
 /** Splits a GM reply into narration, per-speaker dialogue, and an optional "Meanwhile" cutaway. */
 export function parseBlocks(text: string): Block[] {
+  // An OOC note from the GM (always the last part of a reply) is pulled out first.
+  const o = text.search(/^\s*\**\s*(\[\s*OOC\b|\(\(\s*OOC\b)/im);
+  if (o >= 0) {
+    const note = text
+      .slice(o)
+      .replace(/^\s*\**\s*(\[\s*OOC\s*:?\s*\]|\(\(\s*OOC\s*:?)\**\s*:?\s*/i, "")
+      .replace(/\)\)\s*$/, "")
+      .trim();
+    const before = o > 0 ? parseBlocks(text.slice(0, o)) : [];
+    return [...before, { kind: "ooc", text: note }];
+  }
   const idx = text.search(/^\s*\**\[\s*MEANWHILE/im);
   if (idx < 0) return parseFlat(text);
   const m = text.slice(idx).match(MEANWHILE);

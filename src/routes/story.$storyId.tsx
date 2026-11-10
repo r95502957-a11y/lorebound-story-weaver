@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, BookOpen, Globe2, Pencil, RotateCcw, Send, Trash2, X } from "lucide-react";
-import { getStory, putStory, uid, type CastMember, type Fact, type Hud, type Msg, type Story } from "@/lib/rp";
-import { buildContext, recentTranscript } from "@/lib/prompts";
+import { ArrowLeft, BookOpen, Globe2, MessageCircleQuestion, Pencil, RotateCcw, Send, Trash2, X } from "lucide-react";
+import { getStory, putStory, setupLines, uid, type CastMember, type Fact, type Hud, type Msg, type Story } from "@/lib/rp";
+import { buildContext, gmText, recentTranscript } from "@/lib/prompts";
 import { updateLedger } from "@/lib/rp.functions";
 import { findPictures } from "@/lib/pictures.functions";
 import { applyPictures, needsAiOnly, pendingPictures } from "@/lib/real-pictures";
@@ -73,6 +73,7 @@ function StoryPage() {
   const [activeMsg, setActiveMsg] = useState<string | null>(null);
   const [typingId, setTypingId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
+  const [ooc, setOoc] = useState(false);
   const ref = useRef<Story | null>(null);
   const scroller = useRef<HTMLElement>(null);
   const inner = useRef<HTMLDivElement>(null);
@@ -89,8 +90,11 @@ function StoryPage() {
 
   const runLedger = useCallback(
     async (s: Story) => {
-      const recent = s.messages.slice(-4).map((m) => `${m.role === "user" ? "PLAYER" : "GM"}: ${m.text}`).join("\n\n");
-      const lastGm = [...s.messages].reverse().find((m) => m.role === "gm");
+      const recent = s.messages
+        .slice(-4)
+        .map((m) => `${m.role === "user" ? (m.ooc ? "PLAYER (out of character, to the GM)" : "PLAYER") : m.ooc ? "GM (out of character)" : "GM"}: ${m.text}`)
+        .join("\n\n");
+      const lastGm = [...s.messages].reverse().find((m) => m.role === "gm" && !m.ooc);
       const cast = s.cast ?? [];
       const needLooks = speakersIn(s.messages.slice(-4).filter((m) => m.role === "gm").map((m) => m.text).join("\n\n")).filter(
         (n) => !findCast(cast, n),
@@ -186,7 +190,7 @@ function StoryPage() {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             instructions: buildContext(base),
-            messages: recentTranscript(base).map((m) => ({ role: m.role, text: m.text })),
+            messages: recentTranscript(base).map((m) => ({ role: m.role, text: gmText(m) })),
           }),
         });
         if (!res.ok || !res.body) throw new Error(await res.text());
@@ -201,10 +205,14 @@ function StoryPage() {
           ref.current = s;
           setStory(s);
         }
+        // A pure out-of-character answer doesn't move the story, so memory stays as it is.
+        const asked = base.messages[base.messages.length - 1];
+        const pureOoc = !!asked?.ooc && parseBlocks(text).every((b) => b.kind === "ooc");
+        if (pureOoc) s = { ...s, messages: s.messages.map((m) => (m.id === gmId ? { ...m, ooc: true } : m)) };
         commit(s);
         setBusy(false);
         box.current?.focus();
-        void runLedger(s);
+        if (!pureOoc) void runLedger(s);
       } catch (e) {
         commit(base);
         setError(e instanceof Error && e.message ? e.message : "The Game Master couldn't respond.");
@@ -266,7 +274,13 @@ function StoryPage() {
     const text = input.trim();
     if (!cur || !text || busy) return;
     setInput("");
-    void generate({ ...cur, messages: [...cur.messages, { id: uid(), role: "user", text }] });
+    setOoc(false);
+    void generate({ ...cur, messages: [...cur.messages, { id: uid(), role: "user", text, ...(ooc ? { ooc: true } : {}) }] });
+  }
+
+  function answerOoc() {
+    setOoc(true);
+    box.current?.focus();
   }
 
   function regenerate() {
@@ -334,9 +348,16 @@ function StoryPage() {
               {m.role === "user" ? (
                 <div className="flex items-end justify-end gap-2">
                   {activeMsg === m.id && <MsgActions onEdit={() => editMsg(m)} onDelete={() => deleteMsg(m)} />}
-                  <button onClick={() => setActiveMsg(activeMsg === m.id ? null : m.id)} className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-user-bubble px-4 py-2.5 text-left text-user-bubble-foreground">
-                    {m.text}
-                  </button>
+                  {m.ooc ? (
+                    <button onClick={() => setActiveMsg(activeMsg === m.id ? null : m.id)} className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm border border-dashed border-accent/70 bg-secondary/60 px-4 py-2.5 text-left text-sm">
+                      <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-accent">OOC · to the GM</span>
+                      {m.text}
+                    </button>
+                  ) : (
+                    <button onClick={() => setActiveMsg(activeMsg === m.id ? null : m.id)} className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-user-bubble px-4 py-2.5 text-left text-user-bubble-foreground">
+                      {m.text}
+                    </button>
+                  )}
                   {player && <Avatar src={player.portrait} name={player.name} size="sm" />}
                 </div>
               ) : (
@@ -349,7 +370,7 @@ function StoryPage() {
                       </figcaption>
                     </figure>
                   )}
-                  <GmText msg={m} story={story} typing={m.id === typingId} onZoom={setZoom} />
+                  <GmText msg={m} story={story} typing={m.id === typingId} onZoom={setZoom} onAnswer={answerOoc} />
                   {activeMsg === m.id && !busy && (
                     <div className="mt-2 flex gap-2">
                       {m.id === lastGmId && (
@@ -375,7 +396,21 @@ function StoryPage() {
         onSubmit={(e) => { e.preventDefault(); send(); }}
         className="border-t border-border bg-background/90 px-3 py-3 backdrop-blur"
       >
+        {ooc && (
+          <div className="mx-auto mb-2 max-w-2xl text-xs text-accent">
+            Out of character: ask the GM anything, or answer their question. The story won't move until you write in character again.
+          </div>
+        )}
         <div className="mx-auto flex max-w-2xl items-end gap-2">
+          <button
+            type="button"
+            onClick={() => setOoc(!ooc)}
+            aria-pressed={ooc}
+            aria-label="Talk out of character"
+            className={`flex h-12 shrink-0 items-center justify-center rounded-full px-3 text-xs font-bold tracking-widest ${ooc ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground"}`}
+          >
+            OOC
+          </button>
           <textarea
             ref={box}
             autoFocus
@@ -383,8 +418,8 @@ function StoryPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 768) { e.preventDefault(); send(); } }}
-            placeholder="What do you do?"
-            className="max-h-40 min-h-[48px] flex-1 resize-none rounded-2xl border border-input bg-card px-4 py-3 text-base outline-none focus:border-ring"
+            placeholder={ooc ? "Ask or tell the GM…" : "What do you do?"}
+            className={`max-h-40 min-h-[48px] min-w-0 flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-base outline-none focus:border-ring ${ooc ? "border-dashed border-accent" : "border-input"}`} px-4 py-3 text-base outline-none focus:border-ring"
           />
           <button disabled={busy || !input.trim()} aria-label="Send" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
             <Send className="h-5 w-5" />
