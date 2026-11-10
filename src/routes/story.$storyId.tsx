@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, BookOpen, Pencil, RotateCcw, Send, Trash2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Globe2, Pencil, RotateCcw, Send, Trash2, X } from "lucide-react";
 import { getStory, putStory, uid, type CastMember, type Fact, type Hud, type Msg, type Story } from "@/lib/rp";
 import { buildContext, recentTranscript } from "@/lib/prompts";
 import { updateLedger } from "@/lib/rp.functions";
@@ -15,6 +15,7 @@ import {
   sceneUrl,
   seedFrom,
   speakersIn,
+  type Block,
 } from "@/lib/visuals";
 import { Avatar, Pic, PictureControls, usePictureUrl, useTypewriter } from "@/components/visuals";
 
@@ -53,7 +54,14 @@ type LedgerResult = {
   newCast?: Look[];
   castChanges?: Look[];
   scene?: { show?: boolean; description?: string; place?: string; photo?: string };
+  world?: { offscreen?: unknown[]; upcoming?: unknown[] };
 };
+
+function cleanList(v: unknown[] | undefined, fallback: string[]) {
+  if (!Array.isArray(v)) return fallback;
+  const out = v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 8);
+  return out.length ? out : fallback;
+}
 
 function StoryPage() {
   const { storyId } = Route.useParams();
@@ -109,6 +117,10 @@ function StoryPage() {
         facts: [...cur.facts.filter((f) => !remove.has(f.text)), ...added],
         hud: { ...cur.hud, ...(r.hud ?? {}), nearby: r.hud?.nearby ?? cur.hud.nearby, threads: r.hud?.threads ?? cur.hud.threads },
         checkpoint: r.checkpoint || cur.checkpoint,
+        world: {
+          offscreen: cleanList(r.world?.offscreen, cur.world?.offscreen ?? []),
+          upcoming: cleanList(r.world?.upcoming, cur.world?.upcoming ?? []),
+        },
       };
 
       // Visual identity ledger: register new characters, track appearance changes (keeping the old look).
@@ -399,13 +411,29 @@ function ZoomImg({ src }: { src: string }) {
 function GmText({ msg, story, typing, onZoom }: { msg: Msg; story: Story; typing: boolean; onZoom: (u: string) => void }) {
   const text = useTypewriter(msg.text, typing);
   if (!msg.text) return <span className="animate-pulse font-display text-[1.2rem] text-muted-foreground">The world stirs…</span>;
+  return <Blocks blocks={parseBlocks(text)} story={story} onZoom={onZoom} />;
+}
+
+function Blocks({ blocks, story, onZoom }: { blocks: Block[]; story: Story; onZoom: (u: string) => void }) {
   return (
     <div className="space-y-4">
-      {parseBlocks(text).map((b, i) =>
+      {blocks.map((b, i) =>
         b.kind === "narration" ? (
           <p key={i} className="whitespace-pre-wrap font-display text-[1.2rem] leading-relaxed">{renderText(b.text)}</p>
-        ) : (
+        ) : b.kind === "speech" ? (
           <SpeechBlock key={i} speaker={b.speaker} text={b.text} member={findCast(story.cast, b.speaker)} onZoom={onZoom} />
+        ) : (
+          <section key={i} className="rounded-2xl border border-dashed border-accent/60 bg-secondary/40 p-4">
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent">
+              <Globe2 className="h-3.5 w-3.5" /> Meanwhile{b.place ? ` · ${b.place}` : ""}
+            </div>
+            {b.blocks.length ? (
+              <Blocks blocks={b.blocks} story={story} onZoom={onZoom} />
+            ) : (
+              <span className="animate-pulse text-sm text-muted-foreground">Elsewhere…</span>
+            )}
+            <p className="mt-3 text-[11px] italic text-muted-foreground">Your character doesn't know this.</p>
+          </section>
         ),
       )}
     </div>
