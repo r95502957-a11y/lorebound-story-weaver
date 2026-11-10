@@ -596,3 +596,40 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
     </div>
   );
 }
+
+function WorldTab({ story }: { story: Story }) {
+  const [spoilers, setSpoilers] = useState(false);
+  const off = story.world?.offscreen ?? [];
+  const up = story.world?.upcoming ?? [];
+  return (
+    <div className="space-y-4 text-sm">
+      <div>
+        <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-accent">Elsewhere, right now</div>
+        {!off.length && <p className="text-muted-foreground">The wider world fills in after the first few replies.</p>}
+        <ul className="space-y-2">
+          {off.map((x) => (
+            <li key={x} className="rounded-xl bg-secondary p-3">{x}</li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-widest text-accent">Coming on the timeline</span>
+          <button onClick={() => setSpoilers(!spoilers)} className="rounded-full bg-secondary px-3 py-1 text-xs">
+            {spoilers ? "Hide" : "Show spoilers"}
+          </button>
+        </div>
+        {spoilers ? (
+          up.length ? (
+            <ol className="list-decimal space-y-2 pl-5">{up.map((x) => <li key={x}>{x}</li>)}</ol>
+          ) : (
+            <p className="text-muted-foreground">Nothing planned yet.</p>
+          )
+        ) : (
+          <p className="text-muted-foreground">{up.length} upcoming event{up.length === 1 ? "" : "s"} hidden.</p>
+        )}
+      </div>
+      <p className="text-xs italic text-muted-foreground">Your character only knows what they've seen or heard.</p>
+    </div>
+  );
+}
