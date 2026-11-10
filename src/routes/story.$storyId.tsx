@@ -480,7 +480,7 @@ function MsgActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 }
 
 function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClose: () => void; onChange: (s: Story) => void; onZoom: (u: string) => void }) {
-  const [tab, setTab] = useState<"status" | "cast" | "memory" | "chapters" | "canon">("status");
+  const [tab, setTab] = useState<"status" | "cast" | "world" | "memory" | "chapters" | "canon">("status");
   const h = story.hud;
   const cast = story.cast ?? [];
   const setMember = (id: string, patch: Partial<CastMember>) =>
@@ -494,7 +494,7 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
           <button onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
         </div>
         <div className="mb-4 flex gap-2 overflow-x-auto">
-          {(["status", "cast", "memory", "chapters", "canon"] as const).map((t) => (
+          {(["status", "cast", "world", "memory", "chapters", "canon"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-sm capitalize ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{t}</button>
           ))}
         </div>
@@ -590,6 +590,7 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
             <div className="rounded-xl border border-border p-3"><div className="text-xs text-muted-foreground">Current checkpoint (in progress)</div><p>{story.checkpoint || "—"}</p></div>
           </div>
         )}
+        {tab === "world" && <WorldTab story={story} />}
         {tab === "canon" && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{story.canon}</p>}
       </div>
     </div>
