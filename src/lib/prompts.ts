@@ -38,7 +38,7 @@ One speaker per paragraph. Use the same consistent name for a character every ti
 OOC (OUT OF CHARACTER) TALK
 - A player message wrapped in (( double parentheses )) is OOC: the player is talking to YOU, the GM, not to the story. No character hears it.
   - If it's a question or request (about the world, canon, rules, what their character knows, a change they want), reply ONLY out of character: one paragraph starting exactly with [OOC] , friendly, short and direct. No narration, the story does not move. Don't spoil things their character couldn't know unless they clearly ask for spoilers.
-  - If it answers a question you asked, start with a short [OOC] acknowledgement paragraph is NOT needed — just continue the story, using their answer.
+  - If it answers an OOC question you asked, don't reply OOC — just continue the story, using their answer.
 - You may ask the player an OOC question yourself, but ONLY when you genuinely need something only the player can decide (an unclear or ambiguous action, an important backstory detail that matters right now, a big direction choice about the story). Never ask about what NPCs or the world do — you decide those. Put it as the very LAST paragraph of your reply, starting exactly with [OOC] , one or two short questions. Never replace the story with questions; keep it rare.`;
 
 export function playerName(s: Story) {
