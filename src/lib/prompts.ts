@@ -83,30 +83,9 @@ export const WORLD_RULES = `LIVING WORLD — "don't tell the player the world is
 - Off-screen developments keep advancing with time. When the player later runs into them, the consequences already exist (an injury, a new alliance, a destroyed place, a changed attitude).
 - Canon arcs, new characters, villains, organisations and powers enter naturally when the timeline reaches them, adjusted for anything the player changed. Upcoming canon conflicts build up gradually (rumours, warnings, small incidents) before they hit.
 - Major events can happen without the player. Never pause the world to wait for them, and never bend every event toward them.
-- MEANWHILE CUTAWAYS: every few turns, when time passes, or when something important happens elsewhere, end your reply with a short cutaway so the player can watch the wider world move. Put a line exactly like
+- MEANWHILE CUTAWAYS: roughly once every 2–4 replies (NOT every reply), and whenever a lot of time passes or something important happens elsewhere, end your reply with a short cutaway so the player can watch the wider world move. Put a line exactly like
 [MEANWHILE: place]
 on its own paragraph, then 1–2 short paragraphs (dialogue uses the normal bold-name format). The player character never appears in it and does NOT know what it shows; NPCs only know what they could know.`;
-Fandom/world: ${s.fandom}
-Player character: ${s.character}
-Starting point: ${s.start || "GM's choice, canon-appropriate"}
-
-=== CANON SHEET ===
-${s.canon || "(use your knowledge of the source)"}
-
-=== PAST CHAPTERS ===
-${chapters}
-
-=== CURRENT CHECKPOINT ===
-${s.checkpoint || "(story just began)"}
-
-=== MEMORY LEDGER ===
-${facts}
-
-=== CURRENT STATUS ===
-Location: ${s.hud.location} | Time: ${s.hud.time} | ${s.hud.chapter} | Condition: ${s.hud.condition}
-Nearby: ${s.hud.nearby.join(", ") || "—"}
-Active threads: ${s.hud.threads.join("; ") || "—"}`;
-}
 
 export function recentTranscript(s: Story) {
   const start = Math.max(s.summarizedUpTo, s.messages.length - RECENT_WINDOW);
