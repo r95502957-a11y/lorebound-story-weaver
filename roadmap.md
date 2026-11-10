@@ -4,4 +4,4 @@
 - [ ] Real pictures first: actual character art + real places from the web; AI picture only when none exists
 - [x] Faster Game Master replies
 - [x] Replies appear word by word (c.ai-style typing) instead of in big chunks
-- [ ] Living world: off-screen NPC/villain/class progress, canon arcs and new characters arrive on the timeline, consequences already exist when the player meets them ("let me watch it being alive")
+- [x] Living world: off-screen NPC/villain/class progress, canon arcs and new characters arrive on the timeline, consequences already exist when the player meets them ("let me watch it being alive")
