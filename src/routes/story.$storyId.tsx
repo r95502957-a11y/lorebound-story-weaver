@@ -419,7 +419,7 @@ function StoryPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 768) { e.preventDefault(); send(); } }}
             placeholder={ooc ? "Ask or tell the GM…" : "What do you do?"}
-            className={`max-h-40 min-h-[48px] min-w-0 flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-base outline-none focus:border-ring ${ooc ? "border-dashed border-accent" : "border-input"}`} px-4 py-3 text-base outline-none focus:border-ring"
+            className={`max-h-40 min-h-[48px] min-w-0 flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-base outline-none focus:border-ring ${ooc ? "border-dashed border-accent" : "border-input"}`}
           />
           <button disabled={busy || !input.trim()} aria-label="Send" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
             <Send className="h-5 w-5" />
@@ -443,13 +443,13 @@ function ZoomImg({ src }: { src: string }) {
   return <img src={url} alt="" className="max-h-full max-w-full rounded-2xl" />;
 }
 
-function GmText({ msg, story, typing, onZoom }: { msg: Msg; story: Story; typing: boolean; onZoom: (u: string) => void }) {
+function GmText({ msg, story, typing, onZoom, onAnswer }: { msg: Msg; story: Story; typing: boolean; onZoom: (u: string) => void; onAnswer: () => void }) {
   const text = useTypewriter(msg.text, typing);
   if (!msg.text) return <span className="animate-pulse font-display text-[1.2rem] text-muted-foreground">The world stirs…</span>;
-  return <Blocks blocks={parseBlocks(text)} story={story} onZoom={onZoom} />;
+  return <Blocks blocks={parseBlocks(text)} story={story} onZoom={onZoom} onAnswer={typing ? undefined : onAnswer} />;
 }
 
-function Blocks({ blocks, story, onZoom }: { blocks: Block[]; story: Story; onZoom: (u: string) => void }) {
+function Blocks({ blocks, story, onZoom, onAnswer }: { blocks: Block[]; story: Story; onZoom: (u: string) => void; onAnswer?: (() => void) | undefined }) {
   return (
     <div className="space-y-4">
       {blocks.map((b, i) =>
@@ -457,6 +457,18 @@ function Blocks({ blocks, story, onZoom }: { blocks: Block[]; story: Story; onZo
           <p key={i} className="whitespace-pre-wrap font-display text-[1.2rem] leading-relaxed">{renderText(b.text)}</p>
         ) : b.kind === "speech" ? (
           <SpeechBlock key={i} speaker={b.speaker} text={b.text} member={findCast(story.cast, b.speaker)} onZoom={onZoom} />
+        ) : b.kind === "ooc" ? (
+          <section key={i} className="rounded-2xl border border-dashed border-accent/70 bg-secondary/60 p-3 text-sm">
+            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-accent">
+              <MessageCircleQuestion className="h-3.5 w-3.5" /> OOC · Game Master
+            </div>
+            <p className="whitespace-pre-wrap">{renderText(b.text)}</p>
+            {onAnswer && (
+              <button type="button" onClick={(e) => { e.stopPropagation(); onAnswer(); }} className="mt-2 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">
+                Answer out of character
+              </button>
+            )}
+          </section>
         ) : (
           <section key={i} className="rounded-2xl border border-dashed border-accent/60 bg-secondary/40 p-4">
             <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent">
