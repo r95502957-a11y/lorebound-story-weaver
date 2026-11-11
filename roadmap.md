@@ -5,3 +5,4 @@
 - [x] Faster Game Master replies
 - [x] Replies appear word by word (c.ai-style typing) instead of in big chunks
 - [x] Living world: off-screen NPC/villain/class progress, canon arcs and new characters arrive on the timeline, consequences already exist when the player meets them ("let me watch it being alive")
+- [x] Deep lore & foreshadowing: hidden details planted, clues over time, big reveals much later (Lore tab)
