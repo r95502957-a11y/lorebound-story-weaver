@@ -1,20 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { parseLooseJson } from "./lore";
 
 async function runText(instructions: string, input: string, json = false) {
   const { geminiText } = await import("./gemini.server");
   return geminiText(instructions, input, json);
 }
 
-function parseJson(text: string): unknown {
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) return null;
-  try {
-    return JSON.parse(m[0]);
-  } catch {
-    return null;
-  }
-}
 
 export const buildCanonSheet = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
@@ -88,6 +80,7 @@ Update continuity. Return JSON:
   "newCast": [{"name": "", "look": "", "canon": true}],  // canon = true if an existing character of the source material, false if original  // appearance for each of these speakers with no portrait yet: ${JSON.stringify(data.needLooks)} plus any other important new character who appeared. look = one sentence: face, hair, eyes, age, build, current outfit, distinguishing marks; canon-accurate for canon characters. Use the exact names given.
   "castChanges": [{"name": "", "look": ""}],  // ONLY if an existing cast member's appearance clearly changed in the latest exchange (new outfit, injury, haircut, transformation): full updated look
   "world": {"offscreen": [""], "upcoming": [""]},  // FULL updated lists (max 8 each). offscreen = "Who/faction: what they are doing right now and where it is heading" for important characters, rivals, villains and organisations NOT with the player — advance them for the time that passed, include anything shown in a MEANWHILE cutaway. upcoming = canon events/arcs, new characters, villains and conflicts approaching on the timeline (adjusted for what the player changed), soonest first; drop ones that already happened.
+  "seeds": {"new": [{"seen": "", "truth": ""}], "updates": [{"id": "S1", "status": "hinted"|"revealed", "hint": ""}]},  // CHEKHOV'S VAULT. new = distinctive details the GM just planted in the latest exchange that are NOT in the vault yet (max 2; skip ordinary scenery): seen = exactly what the player character noticed; truth = its hidden truth, decided now and kept forever (canon-accurate deep lore in canon worlds, consistent with the canon sheet and vault). updates = ONLY vault seeds the latest exchange touched: "hinted" + a one-sentence hint if a new clue pointed back to it, "revealed" if its secret was actually uncovered. Use empty arrays when nothing happened. Never put an unrevealed secret into newFacts.
   "scene": {"show": false, "description": "", "place": "", "photo": ""}  // show=true ${data.opening ? "(this is the OPENING scene, so true)" : "ONLY if a new location was entered, the environment changed a lot, a major character entered or a major event/battle happened"}; description = one sentence of what the picture shows, matching time of day, weather and place; never show the player character doing anything they didn't do; place = the canon name of the location if it exists in the source (e.g. "Hokage Residence"), else ""; photo = 2-5 plain words to search a real photo of the scenery (e.g. "misty pine forest dawn")
 }
 
@@ -95,7 +88,7 @@ Update continuity. Return JSON:
 ${data.cast.join("\n") || "(none)"}`,
         true,
       );
-      return { result: JSON.stringify(parseJson(text)), error: null };
+      return { result: JSON.stringify(parseLooseJson(text)), error: null };
     } catch (e) {
       console.error(e);
       return { result: null, error: "update failed" };
