@@ -9,16 +9,21 @@ export function Pic({
   alt,
   className,
   fallback,
+  face,
 }: {
   src?: string | undefined;
   alt: string;
   className?: string;
   fallback?: React.ReactNode;
+  /** Character picture: tall (full-body) art is zoomed onto the face instead of showing the torso. */
+  face?: boolean;
 }) {
   const [state, setState] = useState<PicState>({ status: "waiting", ahead: 0 });
   const [broken, setBroken] = useState(false);
+  const [zoom, setZoom] = useState(1);
   useEffect(() => {
     setBroken(false);
+    setZoom(1);
     if (!src) return;
     const update = () => setState(pictureState(src));
     update();
@@ -40,9 +45,19 @@ export function Pic({
       src={state.url}
       alt={alt}
       onError={() => setBroken(true)}
+      onLoad={face ? (e) => setZoom(faceZoom(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) : undefined}
+      style={face ? { objectPosition: "50% 0%", transform: zoom > 1 ? `scale(${zoom})` : undefined, transformOrigin: "50% 3%" } : undefined}
       className={`${className} bg-secondary object-cover`}
     />
   );
+}
+
+/** How much to zoom a character picture so the face fills a round avatar (tall full-body art needs more). */
+export function faceZoom(w: number, h: number) {
+  if (!w || !h) return 1;
+  const r = h / w;
+  if (r <= 1.15) return 1;
+  return Math.min(2, 1 + (r - 1) * 1.2);
 }
 
 /** Same as Pic but resolves to the saved picture so zoom shows it too. */
@@ -61,7 +76,11 @@ export function Avatar({ src, name, size = "md" }: { src?: string | undefined; n
       {name.trim().charAt(0).toUpperCase() || "?"}
     </div>
   );
-  return <Pic src={src} alt={name} className={`${cls} shrink-0 rounded-full ring-1 ring-border`} fallback={fb} />;
+  return (
+    <div className={`${cls} shrink-0 overflow-hidden rounded-full ring-1 ring-border`}>
+      <Pic src={src} alt={name} className="h-full w-full" fallback={fb} face />
+    </div>
+  );
 }
 
 /** "New picture / Upload / Link" controls for any picture. */
