@@ -1,4 +1,5 @@
 // Shared, browser-safe story types + localStorage store.
+import type { LoreSeed } from "./lore";
 export type Msg = {
   id: string;
   role: "user" | "gm";
@@ -56,6 +57,7 @@ export type Story = {
   // living world: what others are doing off-screen + canon events approaching on the timeline
   world?: { offscreen: string[]; upcoming: string[] };
   setup?: StorySetup; // everything the player chose before the story began
+  seeds?: LoreSeed[]; // Chekhov's vault: planted details + their hidden truths
 };
 
 /** Full story setup chosen on the "Begin a story" screen. Empty strings = GM's choice. */

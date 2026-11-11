@@ -1,5 +1,6 @@
 import type { Story } from "./rp";
 import { RECENT_WINDOW, setupLines } from "./rp";
+import { vaultForGm } from "./lore";
 
 /** What the Game Master receives for one message; OOC player messages are wrapped in (( )). */
 export function gmText(m: { role: "user" | "gm"; text: string; ooc?: boolean }) {
@@ -61,6 +62,8 @@ THE PLAYER CHARACTER IS: ${player}
 
 ${WORLD_RULES}
 
+${DETAIL_RULES}
+
 === STORY SETUP ===
 Fandom/world: ${s.fandom}
 Player character: ${s.character}
@@ -84,6 +87,9 @@ ${facts}
 === WORLD IN MOTION (off-screen; ${player} does NOT know this unless they learned it) ===
 ${offscreen}
 
+=== CHEKHOV'S VAULT (GM ONLY — secret truths behind planted details; ${player} does NOT know the SECRET part) ===
+${vaultForGm(s.seeds, s.messages.length)}
+
 === COMING ON THE TIMELINE ===
 ${upcoming}
 
@@ -101,6 +107,13 @@ export const WORLD_RULES = `LIVING WORLD — "don't tell the player the world is
 - MEANWHILE CUTAWAYS: roughly once every 2–4 replies (NOT every reply), and whenever a lot of time passes or something important happens elsewhere, end your reply with a short cutaway so the player can watch the wider world move. Put a line exactly like
 [MEANWHILE: place]
 on its own paragraph, then 1–2 short paragraphs (dialogue uses the normal bold-name format). The player character never appears in it and does NOT know what it shows; NPCs only know what they could know.`;
+
+export const DETAIL_RULES = `DEEP DETAIL & FORESHADOWING — Marvel/One Piece-level lore, where a sword seen in chapter 1 turns out 400 chapters later to be a dead king's broken blade
+- LIVED-IN TEXTURE: nothing is generic. Objects, places and people carry age, wear, smell, sound, history and quirks (a notch in a blade, a dialect, scorch marks on old stone, a mentor's habit). Use concrete sensory specifics, not adjectives.
+- PLANT SEEDS: now and then (not every reply) slip in ONE small, distinctive detail that has a hidden truth behind it — an object, a scar, a carving, a name, a song, a hesitation. Weave it in naturally; never spotlight it, never explain it, never hint that it matters. Hidden truths must fit the canon and the CHEKHOV'S VAULT; in canon worlds prefer real canon secrets and deep lore.
+- CALLBACKS: the vault holds every seed ever planted. Return to old seeds with small new clues over time (a rumour, a matching symbol, an NPC's reaction, a dream, a document). The older the seed, the more satisfying a callback. At most one seed per reply.
+- PAYOFF: reveal a seed's SECRET only when it's earned — after at least 2 earlier clues and at a meaningful moment (a climax, a confrontation, a discovery). Make the reveal recontextualise the earlier details.
+- Never state a secret in narration before its reveal, never let NPCs know more than they could, and never mention the vault, seeds or ids in the story.`;
 
 export function recentTranscript(s: Story) {
   const start = Math.max(s.summarizedUpTo, s.messages.length - RECENT_WINDOW);

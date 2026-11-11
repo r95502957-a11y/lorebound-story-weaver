@@ -5,6 +5,7 @@ import { ArrowLeft, BookOpen, Globe2, MessageCircleQuestion, Pencil, RotateCcw, 
 import { getStory, putStory, setupLines, uid, type CastMember, type Fact, type Hud, type Msg, type Story } from "@/lib/rp";
 import { buildContext, gmText, recentTranscript } from "@/lib/prompts";
 import { updateLedger } from "@/lib/rp.functions";
+import { mergeSeeds, type SeedResult } from "@/lib/lore";
 import { findPictures } from "@/lib/pictures.functions";
 import { applyPictures, needsAiOnly, pendingPictures } from "@/lib/real-pictures";
 import {
@@ -55,6 +56,7 @@ type LedgerResult = {
   castChanges?: Look[];
   scene?: { show?: boolean; description?: string; place?: string; photo?: string };
   world?: { offscreen?: unknown[]; upcoming?: unknown[] };
+  seeds?: SeedResult;
 };
 
 function cleanList(v: unknown[] | undefined, fallback: string[]) {
@@ -125,6 +127,7 @@ function StoryPage() {
           offscreen: cleanList(r.world?.offscreen, cur.world?.offscreen ?? []),
           upcoming: cleanList(r.world?.upcoming, cur.world?.upcoming ?? []),
         },
+        seeds: mergeSeeds(cur.seeds ?? [], r.seeds, { chapter: cur.chapters.length + 1, messages: s.messages.length }),
       };
 
       // Visual identity ledger: register new characters, track appearance changes (keeping the old look).
@@ -527,7 +530,7 @@ function MsgActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 }
 
 function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClose: () => void; onChange: (s: Story) => void; onZoom: (u: string) => void }) {
-  const [tab, setTab] = useState<"status" | "cast" | "world" | "memory" | "chapters" | "canon">("status");
+  const [tab, setTab] = useState<"status" | "cast" | "world" | "lore" | "memory" | "chapters" | "canon">("status");
   const h = story.hud;
   const cast = story.cast ?? [];
   const setMember = (id: string, patch: Partial<CastMember>) =>
@@ -541,7 +544,7 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
           <button onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
         </div>
         <div className="mb-4 flex gap-2 overflow-x-auto">
-          {(["status", "cast", "world", "memory", "chapters", "canon"] as const).map((t) => (
+          {(["status", "cast", "world", "lore", "memory", "chapters", "canon"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-sm capitalize ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{t}</button>
           ))}
         </div>
@@ -638,6 +641,7 @@ function StoryPanel({ story, onClose, onChange, onZoom }: { story: Story; onClos
           </div>
         )}
         {tab === "world" && <WorldTab story={story} />}
+        {tab === "lore" && <LoreTab story={story} />}
         {tab === "canon" && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{story.canon}</p>}
       </div>
     </div>
@@ -677,6 +681,58 @@ function WorldTab({ story }: { story: Story }) {
         )}
       </div>
       <p className="text-xs italic text-muted-foreground">Your character only knows what they've seen or heard.</p>
+    </div>
+  );
+}
+
+function LoreTab({ story }: { story: Story }) {
+  const [secrets, setSecrets] = useState(false);
+  const seeds = story.seeds ?? [];
+  const open = seeds.filter((s) => s.status !== "revealed");
+  const done = seeds.filter((s) => s.status === "revealed");
+  return (
+    <div className="space-y-4 text-sm">
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold uppercase tracking-widest text-accent">Details you noticed</span>
+          <button onClick={() => setSecrets(!secrets)} className="rounded-full bg-secondary px-3 py-1 text-xs">
+            {secrets ? "Hide secrets" : "Show secrets"}
+          </button>
+        </div>
+        {!open.length && <p className="text-muted-foreground">Small details with hidden meaning collect here as the story goes on.</p>}
+        <ul className="space-y-2">
+          {open.map((s) => (
+            <li key={s.id} className="space-y-1 rounded-xl bg-secondary p-3">
+              <div className="flex items-start gap-2">
+                <span className={`mt-0.5 shrink-0 rounded px-1.5 text-[10px] uppercase ${s.status === "hinted" ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>{s.status === "hinted" ? "Clues found" : "Unexplained"}</span>
+                <span className="flex-1">{s.seen}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Noticed in chapter {s.plantedChapter}{s.hints.length ? ` · ${s.hints.length} clue${s.hints.length === 1 ? "" : "s"} since` : ""}</p>
+              {secrets && (
+                <>
+                  {s.hints.map((h) => <p key={h} className="border-l-2 border-accent pl-2 text-xs text-muted-foreground">{h}</p>)}
+                  <p className="rounded-lg border border-dashed border-border p-2 text-xs italic">Secret: {s.truth}</p>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+      {done.length > 0 && (
+        <div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-accent">Revealed</div>
+          <ul className="space-y-2">
+            {done.map((s) => (
+              <li key={s.id} className="rounded-xl bg-secondary p-3">
+                <p>{s.seen}</p>
+                <p className="mt-1 font-semibold text-primary">→ {s.truth}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Chapter {s.plantedChapter} → revealed in chapter {s.revealedChapter ?? "?"}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="text-xs italic text-muted-foreground">Secrets stay hidden from your character until the story uncovers them.</p>
     </div>
   );
 }
