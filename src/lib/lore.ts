@@ -11,7 +11,7 @@ export type LoreSeed = {
   plantedChapter: number;
   plantedAt: number; // message count when planted
   hints: string[]; // later clues that pointed back to it
-  revealedChapter?: number;
+  revealedChapter?: number | undefined;
 };
 
 export type SeedResult = {
