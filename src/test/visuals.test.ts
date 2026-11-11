@@ -38,3 +38,12 @@ describe("speaker portraits", () => {
     expect(findCast(cast, "Naruto")).toBeUndefined();
   });
 });
+
+import { faceZoom } from "@/components/visuals";
+describe("faceZoom", () => {
+  it("leaves square pictures alone", () => expect(faceZoom(500, 500)).toBe(1));
+  it("zooms tall full-body art onto the face, capped at 2x", () => {
+    expect(faceZoom(500, 1000)).toBeCloseTo(2.2 > 2 ? 2 : 2.2);
+    expect(faceZoom(500, 750)).toBeCloseTo(1.6);
+  });
+});
