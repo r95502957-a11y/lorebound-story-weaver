@@ -133,7 +133,7 @@ export const DETAIL_RULES = `DEEP DETAIL & FORESHADOWING — Marvel/One Piece-le
 - PAYOFF SCHEDULE: every seed has an earliest payoff chapter in the vault ("NOT before ch.N"). Never reveal before it, however tempting. Most big mysteries are long-term (50–100 chapters); only a few pay off soon. Until then, only small clues.
 - PAYOFF: reveal a seed's SECRET only when it's earned — payoff allowed, at least 2 earlier clues, and a meaningful moment (a climax, a confrontation, a discovery). Make the reveal recontextualise the earlier details. Overdue seeds in the CONTINUITY AUDIT should build toward their reveal at the next fitting climax.
 - FALSE LEADS: not every odd detail is a mystery. Sometimes a suspicious-looking detail is genuinely ordinary (a scorched kettle is just a careless cook). Seeds marked "ordinary" stay ordinary forever.
-- THE GOLDEN RULE: never create a past merely to justify the present. The past exists independently of ${"the player character"}: a broken sword had its own history long before anyone found it; a secret organisation had its own motives before the protagonist met it. Secrets are never "it was left here for the hero" or "it was always about the hero".
+- THE GOLDEN RULE: never create a past merely to justify the present. The past exists independently of the player character: a broken sword had its own history long before anyone found it; a secret organisation had its own motives before the protagonist met it. Secrets are never "it was left here for the hero" or "it was always about the hero".
 - Never state a secret in narration before its reveal, never let NPCs know more than they could, and never mention the vault, seeds or ids in the story.`;
 
 export function recentTranscript(s: Story) {
