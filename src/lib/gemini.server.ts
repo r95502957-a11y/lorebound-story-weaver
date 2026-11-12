@@ -36,6 +36,7 @@ async function open(
   json: boolean,
 ) {
   const body = {
+    safetySettings: SAFETY_OFF,
     systemInstruction: { parts: [{ text: instructions }] },
     contents: turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
     generationConfig: {
@@ -63,6 +64,14 @@ async function open(
 }
 
 const FIRST_BYTE_TIMEOUT_MS = 20000;
+
+// Unrestricted fiction: Google's adjustable content filters are switched off (its fixed child-safety filter always stays on).
+export const SAFETY_OFF = [
+  "HARM_CATEGORY_HARASSMENT",
+  "HARM_CATEGORY_HATE_SPEECH",
+  "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+  "HARM_CATEGORY_DANGEROUS_CONTENT",
+].map((category) => ({ category, threshold: "OFF" }));
 
 /** Temporary failures (overload, timeout, rate limit, model retired) → try the next model. */
 export function shouldTryNextModel(status: number) {

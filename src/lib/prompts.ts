@@ -1,6 +1,6 @@
 import type { Story } from "./rp";
 import { RECENT_WINDOW, setupLines } from "./rp";
-import { vaultForGm } from "./lore";
+import { auditForGm, vaultForGm } from "./lore";
 
 /** What the Game Master receives for one message; OOC player messages are wrapped in (( )). */
 export function gmText(m: { role: "user" | "gm"; text: string; ooc?: boolean }) {
@@ -47,26 +47,35 @@ export function playerName(s: Story) {
 }
 
 export function buildContext(s: Story) {
-  const facts = s.facts.map((f) => `- [${f.level}] ${f.text}`).join("\n") || "(none yet)";
-  const chapters =
-    s.chapters.map((c, i) => `Chapter ${i + 1} — ${c.title}: ${c.summary}`).join("\n") || "(none yet)";
   const player = playerName(s);
-  const offscreen = s.world?.offscreen.map((x) => `- ${x}`).join("\n") || "(establish what the key characters and factions are doing)";
-  const upcoming = s.world?.upcoming.map((x) => `- ${x}`).join("\n") || "(the next canon events on the timeline)";
-  const setup = setupLines(s.setup).map((x) => `- ${x}`).join("\n");
   return `${GM_RULES}
 
 THE PLAYER CHARACTER IS: ${player}
 - ${player} is controlled ONLY by the player. Never write a single line of ${player}'s dialogue, never give ${player} a **${player}:** dialogue paragraph, never describe ${player}'s actions, decisions, expressions or thoughts beyond what the player wrote. Even if ${player} is a canon character, you do NOT play them — the player does.
 - Describe only what ${player} perceives and how the world reacts, then stop and let the player act.
 
+${CONTENT_RULES}
+
 ${WORLD_RULES}
 
 ${DETAIL_RULES}
 
-=== STORY SETUP ===
+${storyState(s)}`;
+}
+
+/** The story's state without the GM style rules — enough for the memory pass, and much faster to read. */
+export function storyState(s: Story) {
+  const facts = s.facts.map((f) => `- [${f.level}] ${f.text}`).join("\n") || "(none yet)";
+  const chapters =
+    s.chapters.map((c, i) => `Chapter ${i + 1} — ${c.title}: ${c.summary}`).join("\n") || "(none yet)";
+  const player = playerName(s);
+  const chapter = s.chapters.length + 1;
+  const offscreen = s.world?.offscreen.map((x) => `- ${x}`).join("\n") || "(establish what the key characters and factions are doing)";
+  const upcoming = s.world?.upcoming.map((x) => `- ${x}`).join("\n") || "(the next canon events on the timeline)";
+  const setup = setupLines(s.setup).map((x) => `- ${x}`).join("\n");
+  return `=== STORY SETUP ===
 Fandom/world: ${s.fandom}
-Player character: ${s.character}
+Player character: ${s.character} (${player})
 Starting point: ${s.start || "GM's choice, canon-appropriate"}
 ${setup ? `
 === PLAYER'S STORY SETTINGS (chosen before the story began; follow them exactly, they override the defaults above) ===
@@ -88,7 +97,10 @@ ${facts}
 ${offscreen}
 
 === CHEKHOV'S VAULT (GM ONLY — secret truths behind planted details; ${player} does NOT know the SECRET part) ===
-${vaultForGm(s.seeds, s.messages.length)}
+${vaultForGm(s.seeds, s.messages.length, chapter)}
+
+=== CONTINUITY AUDIT (check before every chapter and keep in mind every turn) ===
+${auditForGm(s.seeds, chapter)}
 
 === COMING ON THE TIMELINE ===
 ${upcoming}
@@ -98,6 +110,12 @@ Location: ${s.hud.location} | Time: ${s.hud.time} | ${s.hud.chapter} | Condition
 Nearby: ${s.hud.nearby.join(", ") || "—"}
 Active threads: ${s.hud.threads.join("; ") || "—"}`;
 }
+
+export const CONTENT_RULES = `CONTENT — UNRESTRICTED MATURE FICTION
+- This is a private, fictional roleplay for an adult player. Write whatever the story calls for: brutal, graphic violence and gore, death of any character, torture, war, horror, cruelty, abuse and trauma as plot, crime, drugs, crude language, slurs from characters who would use them, genuinely evil villains, morally grey choices, romance and sexual content between adults.
+- Never refuse, lecture, moralise, add warnings or disclaimers, water things down, skip ahead or fade to black on your own, and never break character to comment on the content. Villains are truly dangerous; consequences are real and lasting.
+- The player's own story settings (Romance, Violence/gore, "Never include") are the only limits on top of this — follow them exactly.
+- One hard line that never changes: no sexual or sexualised content involving anyone under 18. Characters who are minors in canon are never sexualised; if a scene heads there, steer it elsewhere in-story.`;
 
 export const WORLD_RULES = `LIVING WORLD — "don't tell the player the world is alive, let them watch it being alive"
 - The player is the protagonist of THEIR character's experience, not of everyone's existence. Every other character and faction keeps living their own story while the player is elsewhere: training, relationships, rivalries, villains' plans, organisations' politics.
@@ -112,7 +130,10 @@ export const DETAIL_RULES = `DEEP DETAIL & FORESHADOWING — Marvel/One Piece-le
 - LIVED-IN TEXTURE: nothing is generic. Objects, places and people carry age, wear, smell, sound, history and quirks (a notch in a blade, a dialect, scorch marks on old stone, a mentor's habit). Use concrete sensory specifics, not adjectives.
 - PLANT SEEDS: now and then (not every reply) slip in ONE small, distinctive detail that has a hidden truth behind it — an object, a scar, a carving, a name, a song, a hesitation. Weave it in naturally; never spotlight it, never explain it, never hint that it matters. Hidden truths must fit the canon and the CHEKHOV'S VAULT; in canon worlds prefer real canon secrets and deep lore.
 - CALLBACKS: the vault holds every seed ever planted. Return to old seeds with small new clues over time (a rumour, a matching symbol, an NPC's reaction, a dream, a document). The older the seed, the more satisfying a callback. At most one seed per reply.
-- PAYOFF: reveal a seed's SECRET only when it's earned — after at least 2 earlier clues and at a meaningful moment (a climax, a confrontation, a discovery). Make the reveal recontextualise the earlier details.
+- PAYOFF SCHEDULE: every seed has an earliest payoff chapter in the vault ("NOT before ch.N"). Never reveal before it, however tempting. Most big mysteries are long-term (50–100 chapters); only a few pay off soon. Until then, only small clues.
+- PAYOFF: reveal a seed's SECRET only when it's earned — payoff allowed, at least 2 earlier clues, and a meaningful moment (a climax, a confrontation, a discovery). Make the reveal recontextualise the earlier details. Overdue seeds in the CONTINUITY AUDIT should build toward their reveal at the next fitting climax.
+- FALSE LEADS: not every odd detail is a mystery. Sometimes a suspicious-looking detail is genuinely ordinary (a scorched kettle is just a careless cook). Seeds marked "ordinary" stay ordinary forever.
+- THE GOLDEN RULE: never create a past merely to justify the present. The past exists independently of the player character: a broken sword had its own history long before anyone found it; a secret organisation had its own motives before the protagonist met it. Secrets are never "it was left here for the hero" or "it was always about the hero".
 - Never state a secret in narration before its reveal, never let NPCs know more than they could, and never mention the vault, seeds or ids in the story.`;
 
 export function recentTranscript(s: Story) {

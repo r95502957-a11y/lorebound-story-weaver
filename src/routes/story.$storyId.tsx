@@ -1,9 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, BookOpen, Globe2, MessageCircleQuestion, Pencil, RotateCcw, Send, Trash2, X } from "lucide-react";
-import { getStory, putStory, setupLines, uid, type CastMember, type Fact, type Hud, type Msg, type Story } from "@/lib/rp";
-import { buildContext, gmText, recentTranscript } from "@/lib/prompts";
+import { ArrowLeft, BookOpen, GitBranch, Globe2, History, MessageCircleQuestion, Pencil, RotateCcw, Send, Trash2, X } from "lucide-react";
+import { getStory, loadStories, putStory, setupLines, uid, type CastMember, type Fact, type Hud, type Msg, type Story } from "@/lib/rp";
+import { buildContext, gmText, playerName, recentTranscript, storyState } from "@/lib/prompts";
+import { branchFrom, rewindTo, withSnap } from "@/lib/timeline";
 import { updateLedger } from "@/lib/rp.functions";
 import { mergeSeeds, type SeedResult } from "@/lib/lore";
 import { findPictures } from "@/lib/pictures.functions";
@@ -76,6 +77,8 @@ function StoryPage() {
   const [typingId, setTypingId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
   const [ooc, setOoc] = useState(false);
+  const [syncing, setSyncing] = useState(0);
+  const navigate = useNavigate();
   const ref = useRef<Story | null>(null);
   const scroller = useRef<HTMLElement>(null);
   const inner = useRef<HTMLDivElement>(null);
@@ -101,19 +104,24 @@ function StoryPage() {
       const needLooks = speakersIn(s.messages.slice(-4).filter((m) => m.role === "gm").map((m) => m.text).join("\n\n")).filter(
         (n) => !findCast(cast, n),
       );
+      setSyncing((n) => n + 1);
       const res = await ledgerFn({
         data: {
-          context: buildContext(s),
+          context: storyState(s),
           transcript: recent,
           facts: s.facts.map((f) => f.text),
           cast: cast.map((c) => `${c.name}${c.isPlayer ? " (player character)" : ""}: ${c.look}`),
           needLooks,
           opening: s.messages.filter((m) => m.role === "gm").length === 1,
         },
-      }).catch(() => null);
+      })
+        .catch(() => null)
+        .finally(() => setSyncing((n) => n - 1));
       const r = (res?.result ? JSON.parse(res.result) : null) as LedgerResult | null;
       const cur = ref.current;
       if (!r || !cur || cur.id !== s.id) return;
+      // the reply was rewound or regenerated meanwhile → this memory belongs to a timeline that no longer exists
+      if (lastGm && !cur.messages.some((m) => m.id === lastGm.id)) return;
       const remove = new Set(r.removeFacts ?? []);
       const added: Fact[] = (r.newFacts ?? [])
         .filter((f) => f.text)
@@ -127,7 +135,7 @@ function StoryPage() {
           offscreen: cleanList(r.world?.offscreen, cur.world?.offscreen ?? []),
           upcoming: cleanList(r.world?.upcoming, cur.world?.upcoming ?? []),
         },
-        seeds: mergeSeeds(cur.seeds ?? [], r.seeds, { chapter: cur.chapters.length + 1, messages: s.messages.length }),
+        seeds: mergeSeeds(cur.seeds ?? [], r.seeds, { chapter: cur.chapters.length + 1, messages: s.messages.length, player: playerName(cur) }),
       };
 
       // Visual identity ledger: register new characters, track appearance changes (keeping the old look).
@@ -173,7 +181,8 @@ function StoryPage() {
         next.summarizedUpTo = cur.messages.length;
         next.hud = { ...next.hud, chapter: `Chapter ${next.chapters.length + 1}` };
       }
-      commit(next);
+      // remember the memory as it stands right after this reply, so you can rewind or branch here later
+      commit(lastGm ? withSnap(next, lastGm.id) : next);
     },
     [ledgerFn, commit],
   );
@@ -208,6 +217,7 @@ function StoryPage() {
           ref.current = s;
           setStory(s);
         }
+        if (!text.trim()) throw new Error("Gemini sent back an empty reply for this turn. Tap Retry, or reword your message.");
         // A pure out-of-character answer doesn't move the story, so memory stays as it is.
         const asked = base.messages[base.messages.length - 1];
         const pureOoc = !!asked?.ooc && parseBlocks(text).every((b) => b.kind === "ooc");
@@ -289,9 +299,44 @@ function StoryPage() {
   function regenerate() {
     const cur = ref.current;
     if (!cur || busy) return;
-    const msgs = [...cur.messages];
-    while (msgs.length && msgs[msgs.length - 1]?.role === "gm") msgs.pop();
-    void generate({ ...cur, messages: msgs });
+    let keep = cur.messages.length;
+    while (keep && cur.messages[keep - 1]?.role === "gm") keep--;
+    // memory from the discarded reply is undone too
+    void generate(rewindTo(cur, keep));
+  }
+
+  /** Go back to this message: everything after it (and what memory learned from it) is undone. */
+  function rewind(m: Msg) {
+    const cur = ref.current;
+    if (!cur || busy) return;
+    const i = cur.messages.findIndex((x) => x.id === m.id);
+    if (i < 0) return;
+    const later = cur.messages.length - i - 1;
+    if (m.role === "user") {
+      if (!confirm(`Rewind to this message so you can rewrite it? It and ${later} later message${later === 1 ? "" : "s"} will be removed.`)) return;
+      commit(rewindTo(cur, i));
+      setInput(m.text);
+      setOoc(!!m.ooc);
+      box.current?.focus();
+    } else {
+      if (!later) return;
+      if (!confirm(`Rewind to here? ${later} later message${later === 1 ? "" : "s"} will be removed, and memory goes back to this point.`)) return;
+      commit(rewindTo(cur, i + 1));
+    }
+    setActiveMsg(null);
+  }
+
+  /** Start a separate copy of the story that continues from this message. The original stays as it is. */
+  function branch(m: Msg) {
+    const cur = ref.current;
+    if (!cur || busy) return;
+    const i = cur.messages.findIndex((x) => x.id === m.id);
+    if (i < 0) return;
+    const b = branchFrom(cur, m.role === "user" ? i : i + 1, uid(), loadStories());
+    putStory(b);
+    setActiveMsg(null);
+    if (m.role === "user") setInput(m.text);
+    void navigate({ to: "/story/$storyId", params: { storyId: b.id } });
   }
 
   function editMsg(m: Msg) {
@@ -329,7 +374,11 @@ function StoryPage() {
         <Pic src={cover} alt="" className="h-10 w-10 shrink-0 rounded-lg" />
         <div className="min-w-0 flex-1">
           <div className="truncate font-display text-xl font-bold leading-tight">{story.title}</div>
-          <div className="truncate text-xs text-muted-foreground">{story.hud.chapter} · {story.hud.location}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {story.branchOf && <span className="text-accent"><GitBranch className="mr-0.5 inline h-3 w-3" />Branch · </span>}
+            {story.hud.chapter} · {story.hud.location}
+            {syncing > 0 && <span className="animate-pulse"> · updating memory…</span>}
+          </div>
         </div>
         <button onClick={() => setPanel(true)} className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-sm">
           <BookOpen className="h-4 w-4" /> Story
@@ -350,7 +399,7 @@ function StoryPage() {
             <div key={m.id} className="space-y-5">
               {m.role === "user" ? (
                 <div className="flex items-end justify-end gap-2">
-                  {activeMsg === m.id && <MsgActions onEdit={() => editMsg(m)} onDelete={() => deleteMsg(m)} />}
+                  {activeMsg === m.id && !busy && <MsgActions onEdit={() => editMsg(m)} onDelete={() => deleteMsg(m)} onRewind={() => rewind(m)} onBranch={() => branch(m)} />}
                   {m.ooc ? (
                     <button onClick={() => setActiveMsg(activeMsg === m.id ? null : m.id)} className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm border border-dashed border-accent/70 bg-secondary/60 px-4 py-2.5 text-left text-sm">
                       <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-accent">OOC · to the GM</span>
@@ -375,11 +424,11 @@ function StoryPage() {
                   )}
                   <GmText msg={m} story={story} typing={m.id === typingId} onZoom={setZoom} onAnswer={answerOoc} />
                   {activeMsg === m.id && !busy && (
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-2 flex flex-wrap gap-2">
                       {m.id === lastGmId && (
                         <button onClick={regenerate} className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs"><RotateCcw className="h-3 w-3" /> Regenerate</button>
                       )}
-                      <MsgActions onEdit={() => editMsg(m)} onDelete={() => deleteMsg(m)} />
+                      <MsgActions onEdit={() => editMsg(m)} onDelete={() => deleteMsg(m)} onRewind={m.id === story.messages[story.messages.length - 1]?.id ? undefined : () => rewind(m)} onBranch={() => branch(m)} />
                     </div>
                   )}
                 </div>
@@ -520,9 +569,15 @@ function ChapterCard({ c, i, onZoom }: { c: Story["chapters"][number]; i: number
   );
 }
 
-function MsgActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function MsgActions({ onEdit, onDelete, onRewind, onBranch }: { onEdit: () => void; onDelete: () => void; onRewind?: (() => void) | undefined; onBranch?: (() => void) | undefined }) {
   return (
-    <div className="flex items-center gap-1 self-center">
+    <div className="flex flex-wrap items-center gap-1 self-center">
+      {onRewind && (
+        <button onClick={(e) => { e.stopPropagation(); onRewind(); }} className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs"><History className="h-3 w-3" /> Rewind here</button>
+      )}
+      {onBranch && (
+        <button onClick={(e) => { e.stopPropagation(); onBranch(); }} className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs"><GitBranch className="h-3 w-3" /> Branch</button>
+      )}
       <button onClick={(e) => { e.stopPropagation(); onEdit(); }} aria-label="Edit" className="rounded-full bg-secondary p-1.5"><Pencil className="h-3 w-3" /></button>
       <button onClick={(e) => { e.stopPropagation(); onDelete(); }} aria-label="Delete" className="rounded-full bg-secondary p-1.5"><Trash2 className="h-3 w-3" /></button>
     </div>
