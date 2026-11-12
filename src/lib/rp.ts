@@ -1,5 +1,6 @@
 // Shared, browser-safe story types + localStorage store.
 import type { LoreSeed } from "./lore";
+import type { Snap } from "./timeline";
 export type Msg = {
   id: string;
   role: "user" | "gm";
@@ -7,6 +8,7 @@ export type Msg = {
   ooc?: boolean; // out-of-character talk between player and GM; the story doesn't move
   // wide scene picture shown above this GM reply; place/photo drive the real-picture lookup
   scene?: { image: string; caption: string; source?: PicSource; place?: string; photo?: string };
+  after?: Snap; // story memory right after this reply was absorbed — lets you rewind/branch here
 };
 
 export type PicSource = "wiki" | "photo" | "ai" | "upload";
@@ -58,6 +60,8 @@ export type Story = {
   world?: { offscreen: string[]; upcoming: string[] };
   setup?: StorySetup; // everything the player chose before the story began
   seeds?: LoreSeed[]; // Chekhov's vault: planted details + their hidden truths
+  // set when this story is a branch: which story/message it split from
+  branchOf?: { id: string; title: string; at: number; rootId: string; rootTitle: string };
 };
 
 /** Full story setup chosen on the "Begin a story" screen. Empty strings = GM's choice. */
