@@ -10,3 +10,7 @@
 - [ ] False leads: some odd details are genuinely ordinary
 - [ ] Chapter audit: before each chapter, check dormant seeds, developing mysteries, overdue payoffs, relevant history
 - [ ] Golden rule: the past exists on its own, never invented to justify the present
+- [ ] Rewind: go back to any message; memory, status, lore and chapters go back too
+- [ ] Branches: start a new copy of the story from any message
+- [ ] Unrestricted RP: mature/dark content allowed, no refusals or moralizing (minors never sexualized)
+- [ ] Faster memory update after each reply
