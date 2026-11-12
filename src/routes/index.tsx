@@ -50,6 +50,9 @@ function Home() {
                   />
                   <div className="min-w-0 flex-1">
                   <div className="text-xs uppercase tracking-widest text-accent">{s.fandom}</div>
+                  {s.branchOf && (
+                    <div className="text-xs text-muted-foreground">Branch of {s.branchOf.title} · from message {s.branchOf.at}</div>
+                  )}
                   <div className="font-display text-2xl font-bold">{s.title}</div>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{last?.text.replace(/\*/g, "") ?? "…"}</p>
                   </div>
