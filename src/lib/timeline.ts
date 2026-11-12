@@ -68,8 +68,8 @@ export function rewindTo(s: Story, keep: number): Story {
       checkpoint: snap.checkpoint,
       hud: snap.hud,
       summarizedUpTo: Math.min(snap.summarizedUpTo, n),
-      world: snap.world,
-      seeds: snap.seeds,
+      ...(snap.world ? { world: snap.world } : {}),
+      seeds: snap.seeds ?? [],
     };
   }
   // No snapshot (very old reply): drop what clearly happened later, keep the rest.
